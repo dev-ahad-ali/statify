@@ -28,7 +28,7 @@ The API and SDK currently contain compile-checked placeholders. Feature work wil
 
 The API runs on Cloudflare Workers. The web app is a static Next.js export deployed to Cloudflare Pages, with a Pages Function forwarding `/api/*` to the API Worker.
 
-- Production: `statify-3ir.pages.dev` until `statify.pages.dev` becomes available
+- Production: `statify-app.pages.dev`
 - Staging: `statify-staging.pages.dev`
 
 The staging workflow uses `wrangler.staging.jsonc`. The production workflow uses `wrangler.jsonc`. Both workflows run typechecking first, then deploy the API and Pages site.
