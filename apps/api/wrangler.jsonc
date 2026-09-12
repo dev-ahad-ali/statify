@@ -1,0 +1,64 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "statify-api-local",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-12",
+  "compatibility_flags": ["nodejs_compat"],
+  "account_id": "ace1993adba6e4cb7cc6096dc4e7dc29",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "statify-staging",
+      "database_id": "5e0c84ad-4be9-46c1-b532-7ddc54c2d835",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "cc6e282bb46e4a52b912a83feb2ada9c",
+    },
+  ],
+  "env": {
+    "staging": {
+      "name": "statify-api-staging",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "statify-staging",
+          "database_id": "5e0c84ad-4be9-46c1-b532-7ddc54c2d835",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "CACHE",
+          "id": "cc6e282bb46e4a52b912a83feb2ada9c",
+        },
+      ],
+      "triggers": {
+        "crons": ["0 0 * * *"],
+      },
+    },
+    "prod": {
+      "name": "statify-api-prod",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "statify-prod",
+          "database_id": "69747c6b-6714-4ca1-a233-25d6e9d0ffc1",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "CACHE",
+          "id": "401cf03873b24f2aa8ab5a55fcb92ede",
+        },
+      ],
+      "triggers": {
+        "crons": ["0 0 * * *"],
+      },
+    },
+  },
+}

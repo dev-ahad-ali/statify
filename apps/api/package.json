@@ -6,12 +6,16 @@
   "scripts": {
     "dev": "echo 'api workspace ready'",
     "build": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types"
   },
   "dependencies": {
     "@statify/shared": "*"
   },
   "devDependencies": {
-    "typescript": "7.0.2"
+    "@types/node": "26.4.1",
+    "typescript": "7.0.2",
+    "wrangler": "4.129.1"
   }
 }
