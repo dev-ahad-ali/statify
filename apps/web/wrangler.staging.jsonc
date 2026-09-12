@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "statify-staging",
+  "pages_build_output_dir": "./out",
+  "compatibility_date": "2026-09-12",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "API_URL": "https://statify-api-staging.ahadali-dev.workers.dev",
+    "NEXT_PUBLIC_WEB_URL": "https://statify-staging.pages.dev"
+  }
+}
