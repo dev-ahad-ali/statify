@@ -49,7 +49,13 @@ export async function logoutController(req: Request, res: Response) {
 
 export async function forgotController(req: Request, res: Response) {
   const parsed = forgotPasswordSchema.safeParse(req.body);
-  if (parsed.success) await forgotPassword(repository, parsed.data.email);
+  if (parsed.success) {
+    try {
+      await forgotPassword(repository, parsed.data.email);
+    } catch (error) {
+      console.error("password reset email failed", error);
+    }
+  }
   return success(res, "If an account exists, a password reset link has been sent", null);
 }
 
