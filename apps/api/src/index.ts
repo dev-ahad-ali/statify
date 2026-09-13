@@ -1,18 +1,5 @@
-import type { Event, Project } from "@statify/shared";
+import { httpServerHandler } from "cloudflare:node";
+import { createApp } from "./app.js";
 
-export type ApiContracts = {
-  event: Event;
-  project: Project;
-};
-
-export default {
-  fetch(request: Request): Response {
-    const url = new URL(request.url);
-
-    if (url.pathname === "/health") {
-      return Response.json({ status: "ok" });
-    }
-
-    return Response.json({ error: "Not found" }, { status: 404 });
-  },
-};
+createApp().listen(8787);
+export default httpServerHandler({ port: 8787 });

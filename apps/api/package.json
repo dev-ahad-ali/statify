@@ -14,9 +14,12 @@
     "db:fresh": "rm -rf .wrangler/state/v3/d1 && bun run db:migrate && bun run db:seed"
   },
   "dependencies": {
-    "@statify/shared": "*"
+    "@statify/shared": "*",
+    "express": "^5.2.1",
+    "jose": "^6.2.12"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "26.4.1",
     "typescript": "7.0.2",
     "wrangler": "4.129.1"

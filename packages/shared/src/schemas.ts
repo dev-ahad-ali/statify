@@ -31,3 +31,17 @@ export const ingestPayloadSchema = z.object({
   context: batchContextSchema,
   events: z.array(eventSchema).min(1).max(100),
 });
+
+export const signupSchema = z.object({
+  email: z.string().trim().email(),
+  password: z.string().min(8).max(128),
+  name: z.string().trim().min(1).max(100),
+});
+
+export const loginSchema = z.object({
+  email: z.string().trim().email(),
+  password: z.string().min(1).max(128),
+});
+
+export const forgotPasswordSchema = z.object({ email: z.string().trim().email() });
+export const resetPasswordSchema = z.object({ token: z.string().min(1), password: z.string().min(8).max(128) });
