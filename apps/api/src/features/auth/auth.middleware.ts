@@ -23,4 +23,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   return next();
 }
 
+export function requireUserId(req: Request) {
+  if (!req.userId) throw new Error("Authenticated user id is missing");
+  return req.userId;
+}
+
 export { readCookie };
