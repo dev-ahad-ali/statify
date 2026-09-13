@@ -19,6 +19,9 @@
       "id": "cc6e282bb46e4a52b912a83feb2ada9c",
     },
   ],
+  "vars": {
+    "ENVIRONMENT": "development",
+  },
   "env": {
     "staging": {
       "name": "statify-api-staging",
@@ -36,6 +39,9 @@
           "id": "cc6e282bb46e4a52b912a83feb2ada9c",
         },
       ],
+      "vars": {
+        "ENVIRONMENT": "staging",
+      },
       "triggers": {
         "crons": ["0 0 * * *"],
       },
@@ -56,6 +62,9 @@
           "id": "401cf03873b24f2aa8ab5a55fcb92ede",
         },
       ],
+      "vars": {
+        "ENVIRONMENT": "production",
+      },
       "triggers": {
         "crons": ["0 0 * * *"],
       },
