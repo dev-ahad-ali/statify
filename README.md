@@ -20,9 +20,12 @@ bun run dev:api
 bun run dev:web
 bun run typecheck
 bun run build
+
+# Reset the local D1 database and load its demo user/project
+bun run db:fresh
 ```
 
-The API and SDK currently contain compile-checked placeholders. Feature work will add their runtime implementations in later tickets.
+The API accepts browser batches at `POST /ingest`. Each valid page-view batch writes raw events and daily rollups in one D1 batch. A 50-event request can create roughly 12 D1 rows per page view, so the free D1 write limit is the first traffic limit to watch.
 
 ## Deployment
 

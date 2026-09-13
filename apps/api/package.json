@@ -16,7 +16,8 @@
   "dependencies": {
     "@statify/shared": "*",
     "express": "^5.2.1",
-    "jose": "^6.2.12"
+    "jose": "^6.2.12",
+    "ua-parser-js": "^2.0.10"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

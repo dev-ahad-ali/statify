@@ -29,7 +29,7 @@ export const batchContextSchema = z.object({
 export const ingestPayloadSchema = z.object({
   apiKey: z.string().min(1),
   context: batchContextSchema,
-  events: z.array(eventSchema).min(1).max(100),
+  events: z.array(eventSchema).min(1).max(50),
 });
 
 export const signupSchema = z.object({
