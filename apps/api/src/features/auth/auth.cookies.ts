@@ -8,3 +8,10 @@ export function setAuthCookies(res: Response, accessToken: string, refreshToken:
   res.append("Set-Cookie", `access_token=${accessToken}; Max-Age=${ACCESS_TOKEN_TTL_SECONDS}; ${suffix}`);
   res.append("Set-Cookie", `refresh_token=${refreshToken}; Max-Age=${REFRESH_TOKEN_TTL_SECONDS}; ${suffix}`);
 }
+
+export function clearAuthCookies(res: Response) {
+  const secure = runtimeEnv.ENVIRONMENT === "production";
+  const suffix = `Path=/; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
+  res.append("Set-Cookie", `access_token=; Max-Age=0; ${suffix}`);
+  res.append("Set-Cookie", `refresh_token=; Max-Age=0; ${suffix}`);
+}

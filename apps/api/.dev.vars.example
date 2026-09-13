@@ -2,4 +2,5 @@
 ACCESS_TOKEN_SECRET=replace-with-a-long-random-local-secret
 REFRESH_TOKEN_SECRET=replace-with-a-different-long-random-local-secret
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+WEB_URL=http://localhost:3000
 PSI_API_KEY=replace-with-a-google-pagespeed-insights-key

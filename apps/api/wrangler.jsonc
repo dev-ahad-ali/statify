@@ -21,6 +21,7 @@
   ],
   "vars": {
     "ENVIRONMENT": "development",
+    "WEB_URL": "http://localhost:3000",
   },
   "env": {
     "staging": {
@@ -41,6 +42,7 @@
       ],
       "vars": {
         "ENVIRONMENT": "staging",
+        "WEB_URL": "https://statify-staging.pages.dev",
       },
       "triggers": {
         "crons": ["0 0 * * *"],
@@ -64,6 +66,7 @@
       ],
       "vars": {
         "ENVIRONMENT": "production",
+        "WEB_URL": "https://statify-app.pages.dev",
       },
       "triggers": {
         "crons": ["0 0 * * *"],
