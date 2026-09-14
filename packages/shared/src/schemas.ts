@@ -24,6 +24,11 @@ export const batchContextSchema = z.object({
   language: z.string(),
   screen: z.string(),
   hostname: z.string(),
+  automation: z.object({
+    webdriver: z.boolean(),
+    headless: z.boolean(),
+    noPointer: z.boolean(),
+  }).optional(),
 });
 
 export const ingestPayloadSchema = z.object({

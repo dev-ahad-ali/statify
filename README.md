@@ -27,6 +27,8 @@ bun run db:fresh
 
 The API accepts browser batches at `POST /ingest`. Each valid page-view batch writes raw events and daily rollups in one D1 batch. A 50-event request can create roughly 12 D1 rows per page view, so the free D1 write limit is the first traffic limit to watch.
 
+The browser SDK is built with `bun run build --filter=@statify/sdk` and writes `packages/sdk/dist/statify.global.js`. Add it to a site with `data-api-key`. It ignores `navigator.doNotTrack`; Statify stores analytics events without IP addresses or cookies, and the product documentation should state that choice.
+
 ## Deployment
 
 The API runs on Cloudflare Workers. The web app is a static Next.js export deployed to Cloudflare Pages, with a Pages Function forwarding `/api/*` to the API Worker.

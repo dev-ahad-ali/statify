@@ -37,6 +37,11 @@ export interface BatchContext {
   language: string;
   screen: string;
   hostname: string;
+  automation?: {
+    webdriver: boolean;
+    headless: boolean;
+    noPointer: boolean;
+  };
 }
 
 export interface IngestPayload {
