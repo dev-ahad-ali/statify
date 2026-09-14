@@ -59,6 +59,10 @@ export async function sha256Hex(value: string) {
 }
 
 export function randomId() {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return randomHex(16);
+}
+
+export function randomHex(byteLength: number) {
+  const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
   return bytesToHex(bytes);
 }
