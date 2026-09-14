@@ -72,7 +72,7 @@ function enrichEvent(event: Event, context: IngestContext, receivedAt: number): 
     agentVendor: optionalString(properties.agentVendor),
     agentHarness: optionalString(properties.agentHarness),
     agentConfidence: optionalString(properties.agentConfidence),
-    source: "browser",
+    source: event.source ?? "browser",
   };
 }
 
@@ -87,12 +87,19 @@ export async function queueIngest(rawBody: string, origin: string | undefined, u
   const parsed = ingestPayloadSchema.safeParse(input);
   if (!parsed.success) throw new IngestValidationError(parsed.error.issues[0]?.message ?? "Invalid ingest payload");
 
+  const serverEventCount = parsed.data.events.filter((event) => event.source === "server").length;
+  if (serverEventCount > 0 && serverEventCount !== parsed.data.events.length) {
+    throw new IngestValidationError("A batch cannot mix browser and server events");
+  }
+
   const project = await lookupProject(parsed.data.apiKey, repository);
   if (!project) throw new IngestUnauthorizedError("Unknown API key");
 
-  const originHostname = getOriginHostname(origin);
-  const allowedDomains = [project.domain, ...project.allowedDomains].map((domain) => domain.toLowerCase());
-  if (!allowedDomains.includes(originHostname)) throw new IngestOriginError("Origin is not allowed for this project");
+  if (serverEventCount === 0) {
+    const originHostname = getOriginHostname(origin);
+    const allowedDomains = [project.domain, ...project.allowedDomains].map((domain) => domain.toLowerCase());
+    if (!allowedDomains.includes(originHostname)) throw new IngestOriginError("Origin is not allowed for this project");
+  }
 
   const parsedAgent = new UAParser(userAgent).getResult();
   const context: IngestContext = {

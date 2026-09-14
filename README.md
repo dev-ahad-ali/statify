@@ -29,6 +29,8 @@ The API accepts browser batches at `POST /ingest`. Each valid page-view batch wr
 
 The browser SDK is built with `bun run build --filter=@statify/sdk` and writes `packages/sdk/dist/statify.global.js`. Add it to a site with `data-api-key`. It ignores `navigator.doNotTrack`; Statify stores analytics events without IP addresses or cookies, and the product documentation should state that choice.
 
+Server applications can import `statify` from `@statify/sdk/server/express` or `statifyNext` from `@statify/sdk/server/next`. These middlewares send `server_request` events after HTML requests, hash the IP with the user agent and UTC date, and never send the raw IP. Server events skip the browser Origin check, so keep the server SDK API key private.
+
 ## Deployment
 
 The API runs on Cloudflare Workers. The web app is a static Next.js export deployed to Cloudflare Pages, with a Pages Function forwarding `/api/*` to the API Worker.

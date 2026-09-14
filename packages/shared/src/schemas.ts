@@ -12,11 +12,12 @@ export const projectSchema = z.object({
 });
 
 export const eventSchema = z.object({
-  type: z.enum(["page_view", "click", "custom"]),
+  type: z.enum(["page_view", "click", "custom", "server_request"]),
   visitorId: z.string().min(1),
   sessionId: z.string().min(1),
   timestamp: z.number().int(),
   properties: z.record(z.string(), z.unknown()),
+  source: z.enum(["browser", "server"]).optional().default("browser"),
 });
 
 export const batchContextSchema = z.object({
