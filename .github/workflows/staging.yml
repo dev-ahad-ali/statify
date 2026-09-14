@@ -60,8 +60,7 @@ jobs:
           bun-version: 1.4.0
       - run: bun install --frozen-lockfile
       - name: Build web
-        working-directory: apps/web
-        run: bun run build
+        run: bun run build --filter=web
         env:
           API_URL: ${{ vars.API_URL }}
           NEXT_PUBLIC_WEB_URL: ${{ vars.NEXT_PUBLIC_WEB_URL }}

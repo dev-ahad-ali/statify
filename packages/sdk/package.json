@@ -11,7 +11,7 @@
     "./browser": "./src/browser/index.ts"
   },
   "scripts": {
-    "build": "tsc --noEmit && tsup",
+    "build": "tsc --noEmit && tsup && cp dist/statify.global.js ../../apps/web/public/statify.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
