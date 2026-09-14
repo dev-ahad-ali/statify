@@ -1,4 +1,4 @@
-export type EventType = "page_view" | "click" | "custom";
+export type EventType = "page_view" | "click" | "custom" | "server_request";
 
 export interface Project {
   id: string;
@@ -30,6 +30,7 @@ export interface Event {
   sessionId: string;
   timestamp: number;
   properties: EventProperties;
+  source?: "browser" | "server";
 }
 
 export interface BatchContext {
@@ -37,6 +38,11 @@ export interface BatchContext {
   language: string;
   screen: string;
   hostname: string;
+  automation?: {
+    webdriver: boolean;
+    headless: boolean;
+    noPointer: boolean;
+  };
 }
 
 export interface IngestPayload {
