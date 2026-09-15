@@ -31,6 +31,8 @@ The browser SDK is built with `bun run build --filter=@statify/sdk` and writes `
 
 Server applications can import `statify` from `@statify/sdk/server/express` or `statifyNext` from `@statify/sdk/server/next`. These middlewares send `server_request` events after HTML requests, hash the IP with the user agent and UTC date, and never send the raw IP. Server events skip the browser Origin check, so keep the server SDK API key private.
 
+The dashboard API reads the `daily_*` rollups when no dashboard filters are active. If a page, referrer, country, browser, OS, or device filter is present, it queries the raw `events` table so the result matches the filter. Both paths cap breakdown lists at 50 rows.
+
 ## Deployment
 
 The API runs on Cloudflare Workers. The web app is a static Next.js export deployed to Cloudflare Pages, with a Pages Function forwarding `/api/*` to the API Worker.

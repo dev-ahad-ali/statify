@@ -147,7 +147,7 @@ async function sendResetEmail(email: string, token: string) {
     headers: { Authorization: `Bearer ${runtimeEnv.RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       from: "Statify <onboarding@resend.dev>", to: [email], subject: "Reset your Statify password",
-      html: resetEmailHtml(`${runtimeEnv.WEB_URL}/reset/${token}`),
+      html: resetEmailHtml(`${runtimeEnv.WEB_URL}/reset?token=${encodeURIComponent(token)}`),
     }),
   });
   if (!response.ok) throw new Error(`Resend request failed with ${response.status}`);
