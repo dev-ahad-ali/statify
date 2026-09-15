@@ -6,7 +6,8 @@ This file describes the repository as it exists after DEV-19. It is meant to giv
 
 - Repository: `dev-ahad-ali/statify`
 - Active working branch: `staging`
-- Latest staging commit: `0239a3d feat: scaffold pages web app with shadcn`
+- Latest feature commit: `0239a3d feat: scaffold pages web app with shadcn`
+- Current staging tip: `21f1be9`, after the remote staging merge
 - API runtime: Express on a Cloudflare Worker through `cloudflare:node` and `httpServerHandler`
 - Web runtime: Next.js static export deployed to Cloudflare Pages
 - Database: Cloudflare D1
