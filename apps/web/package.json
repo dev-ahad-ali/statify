@@ -12,16 +12,28 @@
   },
   "dependencies": {
     "@statify/shared": "*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cn": "^0.3.0",
+    "lucide-react": "^1.46.0",
     "next": "16.3.4",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.6.7",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "recharts": "3.8.0",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
+    "@babel/preset-typescript": "8.0.1",
     "@repo/eslint-config": "*",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "26.4.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "eslint": "10.9.1",
+    "tailwindcss": "^4.3.3",
     "typescript": "7.0.2"
   }
 }
