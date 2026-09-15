@@ -1,12 +1,12 @@
 # Statify handoff context
 
-This file describes the repository as it exists after DEV-18. It is meant to give another developer or coding agent enough context to continue with the next ticket without reconstructing the project from scratch.
+This file describes the repository as it exists after DEV-19. It is meant to give another developer or coding agent enough context to continue with the next ticket without reconstructing the project from scratch.
 
 ## Current state
 
 - Repository: `dev-ahad-ali/statify`
 - Active working branch: `staging`
-- Latest staging commit: `e5e45b8 feat: serve SDK and add install snippets`
+- Latest staging commit: `0239a3d feat: scaffold pages web app with shadcn`
 - API runtime: Express on a Cloudflare Worker through `cloudflare:node` and `httpServerHandler`
 - Web runtime: Next.js static export deployed to Cloudflare Pages
 - Database: Cloudflare D1
@@ -14,13 +14,13 @@ This file describes the repository as it exists after DEV-18. It is meant to giv
 - Package manager: Bun 1.4.0
 - Monorepo runner: Turborepo
 
-The current Linear workspace has completed tickets DEV-5 through DEV-18. DEV-19 is the next implementation ticket. The CLI audit did not find issues DEV-1 through DEV-4 in the current workspace, so do not assume those identifiers are available when linking future work.
+The current Linear workspace has completed tickets DEV-5 through DEV-19. DEV-20 is the next implementation ticket. The CLI audit did not find issues DEV-1 through DEV-4 in the current workspace, so do not assume those identifiers are available when linking future work.
 
 ## Repository layout
 
 ```text
 apps/api/                 Express API Worker, D1 migrations, seed data
-apps/web/                 Next.js app, static Pages output, Pages API proxy
+apps/web/                 Next.js app, static Pages output, Pages API proxy, shadcn UI
 packages/sdk/             Browser snippet and server middleware
 packages/shared/          Zod schemas, TypeScript types, rollup constants, snippets
 .github/workflows/        Pull request, staging, and production workflows
@@ -38,6 +38,8 @@ The frontend is on Cloudflare Pages. It is not an OpenNext or frontend Worker de
 | Production | `https://statify-app.pages.dev` | `https://statify-api-prod.ahadali-dev.workers.dev` | `statify-app` | `prod` |
 
 `apps/web/next.config.js` sets `output: "export"`. Next writes the static site to `apps/web/out`. `apps/web/wrangler.jsonc` and `apps/web/wrangler.staging.jsonc` set `pages_build_output_dir` to `./out` and contain the environment URLs.
+
+The web app now uses Tailwind CSS 4 through `apps/web/postcss.config.mjs`. `apps/web/components.json` configures shadcn with the `new-york` style, CSS variables, the neutral base color, the Lucide icon library, and the `@/*` aliases. `apps/web/app/globals.css` contains the requested black-and-white OKLCH light and dark theme, including chart, sidebar, font, radius, and shadow variables.
 
 The Pages Function at `apps/web/functions/api/[[path]].ts` proxies `/api/*` to the API Worker. It copies request headers, including cookies, forwards the request body for non-GET methods, and returns the upstream status, headers, and body. This keeps dashboard authentication cookies first-party on the Pages origin.
 
@@ -60,7 +62,7 @@ The Pages static headers file at `apps/web/public/_headers` sets:
 
 The API jobs use `wrangler deploy --env staging` or `--env prod`. The web jobs use the Pages-specific Wrangler command. Do not change the web job back to `wrangler deploy` or OpenNext unless the deployment architecture is intentionally redesigned.
 
-The pull request workflow checks root typechecking and requires `staging` as the source branch for pull requests into `main`. GitHub branch protection was configured separately for `main`.
+The pull request workflow checks root typechecking and requires `staging` as the source branch for pull requests into `main`. GitHub branch protection was configured separately for `main`. The latest DEV-19 staging run completed successfully for commit `0239a3d`.
 
 ## API architecture
 
@@ -199,6 +201,22 @@ Server API keys must stay private. The browser key is intentionally public and c
 
 They use the production script URL and `YOUR_API_KEY` as placeholders. DEV-24 should replace the placeholder with the selected project's actual key before displaying or copying the snippet.
 
+## Web UI foundation
+
+The starter page in `apps/web/app/page.tsx` now renders a shadcn `Card` with a `Button`, using the shared Statify theme. The generated components are under `apps/web/components/ui`:
+
+- `button.tsx`
+- `card.tsx`
+- `dialog.tsx`
+- `tabs.tsx`
+- `input.tsx`
+- `sonner.tsx`
+- `chart.tsx`
+
+The components use `radix-ui`, `lucide-react`, `recharts`, `sonner`, `next-themes`, `class-variance-authority`, and the generated `cn` helper package. The dashboard, auth screens, settings, and landing page still belong to later tickets.
+
+The static Pages proxy has been verified locally and on staging. `/api/health` returns the API envelope through `apps/web/functions/api/[[path]].ts`, and `/statify.js` returns `200` with `Cache-Control: public, max-age=3600`.
+
 ## Local development
 
 From the repository root:
@@ -220,8 +238,18 @@ Useful checks:
 bun run typecheck
 bun run build
 bun run build --filter=web
+bun run lint --filter=web
 bun run db:fresh
 ```
+
+To preview the Pages output, build the web app and run:
+
+```sh
+cd apps/web
+bunx wrangler pages dev out --local --port 8788
+```
+
+Then check `/`, `/statify.js`, and `/api/health`. Use `curl --compressed` for the API response because the upstream Worker may return Brotli content.
 
 The API can also be run with `bunx wrangler dev --local` from `apps/api`. When testing browser ingest manually, include a matching `Origin`. When testing server ingest, send `source: "server"` and keep the API key out of browser code.
 
@@ -243,35 +271,36 @@ The API can also be run with `bunx wrangler dev --local` from `apps/api`. When t
 - DEV-16: Browser SDK with IDs, SPA navigation tracking, clicks, batching, beacon delivery, and automation hints.
 - DEV-17: Express and Next server SDK middleware with server events and hashed visitor IDs.
 - DEV-18: Pages-hosted `statify.js`, cache headers, shared install snippets, and SDK-to-web Turbo build ordering.
+- DEV-19: Next.js static Pages export, Tailwind CSS 4, the requested shadcn OKLCH theme, seven shadcn UI components, the `@/*` alias, PostCSS setup, the starter card/button page, and staging verification through the Pages proxy.
 
 ### Next implementation order
 
 The remaining plan is ordered around dependencies:
 
-1. DEV-19: finish the Next.js Pages app, Tailwind, shadcn components, and `/api` proxy verification. Do not introduce OpenNext or move the frontend to a Worker.
-2. DEV-20: auth pages, route guards, and the client API wrapper with refresh-on-401.
-3. DEV-21: authenticated dashboard API with range and filter queries. Keep ownership checks on `owner_id`.
-4. DEV-22: dashboard shell, project switcher, range picker, summary, and visitors chart using shadcn charts and Recharts.
-5. DEV-23: pages, referrers, locations, and device breakdown cards.
-6. DEV-24: settings, project mutations, domains, API key rotation, install snippet picker, and delete confirmation.
-7. DEV-25: seeded demo mode.
-8. DEV-26: agent user-agent list and classifier.
-9. DEV-27: Web Bot Auth signature verification.
-10. DEV-28: agent rollups, API, dashboard section, and demo data.
-11. DEV-29: PageSpeed Insights cron and manual audit trigger.
-12. DEV-30: fetch-based agentic browsing score.
-13. DEV-31: audit UI and history.
-14. DEV-32: landing page, three.js scene, feature grid, and snippet picker.
-15. DEV-33: optional real-user Web Vitals.
-16. DEV-34: rate limits, retention, final security review, documentation, and production release.
+1. DEV-20: auth pages, route guards, and the client API wrapper with refresh-on-401.
+2. DEV-21: authenticated dashboard API with range and filter queries. Keep ownership checks on `owner_id`.
+3. DEV-22: dashboard shell, project switcher, range picker, summary, and visitors chart using shadcn charts and Recharts.
+4. DEV-23: pages, referrers, locations, and device breakdown cards.
+5. DEV-24: settings, project mutations, domains, API key rotation, install snippet picker, and delete confirmation.
+6. DEV-25: seeded demo mode.
+7. DEV-26: agent user-agent list and classifier.
+8. DEV-27: Web Bot Auth signature verification.
+9. DEV-28: agent rollups, API, dashboard section, and demo data.
+10. DEV-29: PageSpeed Insights cron and manual audit trigger.
+11. DEV-30: fetch-based agentic browsing score.
+12. DEV-31: audit UI and history.
+13. DEV-32: landing page, three.js scene, feature grid, and snippet picker.
+14. DEV-33: optional real-user Web Vitals.
+15. DEV-34: rate limits, retention, final security review, documentation, and production release.
 
 ## Known gaps to keep in mind
 
-- The dashboard API and dashboard UI have not been implemented yet. The current web page is still the initial scaffold.
+- The dashboard API and dashboard UI have not been implemented yet. The current web page is still a themed starter page with a card and button.
 - The API schema already contains audit and agent rollup tables, but the agent classifier, Web Bot Auth verifier, dashboard endpoints, and audit cron are future tickets.
 - DEV-17 records the planned browser/server page-view deduplication, but that logic is not implemented yet because the dashboard queries do not exist.
 - Browser API keys are public by design. Origin validation limits accidental cross-site use but cannot stop a client from replaying a public key.
 - `apps/web/public/statify.js` is a generated copy of the SDK bundle. The root Turbo web build regenerates it before the Pages build.
+- `apps/web/components/ui` contains generated shadcn code. Keep the theme variables in `apps/web/app/globals.css` as the source of truth when adding more components.
 - Do not commit `.dev.vars`, `.env.local`, API tokens, JWT secrets, Resend keys, PSI keys, or Cloudflare API tokens.
 - The API currently uses its own `sf_` key format. Do not rename it to the older Orbit `orb_` format without updating the project service, snippets, and tests together.
 
