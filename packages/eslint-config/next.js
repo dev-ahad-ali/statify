@@ -17,6 +17,7 @@ export const nextJsConfig = [
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "public/statify.js",
   ]),
   {
     languageOptions: {
