@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ChevronDown, Plus, RefreshCw } from "lucide-react";
@@ -11,7 +12,10 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { Skeleton } from "@/components/ui/skeleton";
 import { createProject, getProjects, type WebProject } from "@/lib/projects";
 import { getDashboard, type DashboardData } from "@/lib/dashboard";
+import { demoProject, getDemoDashboard } from "@/lib/demo";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { BreakdownCard } from "@/components/dashboard/breakdown-card";
+import { useDemo } from "@/components/dashboard/demo-context";
 
 const ranges = [
   ["today", "Today"],
@@ -26,6 +30,9 @@ const ranges = [
 const chartConfig = {
   visitors: { label: "Visitors", color: "var(--color-chart-2)" },
 } satisfies ChartConfig;
+
+const filterKeys = ["page", "referrer", "country", "browser", "os", "device"] as const;
+type FilterKey = (typeof filterKeys)[number];
 
 function formatNumber(value: number) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
@@ -65,7 +72,7 @@ function EmptyState({ project }: { project: WebProject }) {
   );
 }
 
-function ProjectMenu({ projects, selected, onSelect, onCreated }: { projects: WebProject[]; selected: WebProject | null; onSelect: (project: WebProject) => void; onCreated: (project: WebProject) => void }) {
+function ProjectMenu({ projects, selected, onSelect, onCreated, demo }: { projects: WebProject[]; selected: WebProject | null; onSelect: (project: WebProject) => void; onCreated: (project: WebProject) => void; demo?: boolean }) {
   const [open, setOpen] = useState(false);
   const [newProject, setNewProject] = useState(false);
   const [name, setName] = useState("");
@@ -74,6 +81,10 @@ function ProjectMenu({ projects, selected, onSelect, onCreated }: { projects: We
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (demo) {
+      toast("Not available in demo");
+      return;
+    }
     setSaving(true);
     const result = await createProject({ name, domain });
     setSaving(false);
@@ -129,7 +140,8 @@ function RangeMenu({ range, onSelect }: { range: string; onSelect: (range: strin
   );
 }
 
-export function DashboardClient() {
+export function DashboardClient({ demo: demoProp }: { demo?: boolean } = {}) {
+  const demo = demoProp ?? useDemo();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -142,36 +154,60 @@ export function DashboardClient() {
   const range = searchParams.get("range") ?? "7d";
   const projectId = searchParams.get("project");
   const selected = projects.find((project) => project.id === projectId) ?? projects[0] ?? null;
+  const activeProject = demo ? demoProject : selected;
+  const pageView = (searchParams.get("pageView") as "top" | "entry" | null) ?? "top";
+  const locationView = (searchParams.get("locationView") as "country" | "region" | "city" | null) ?? "country";
+  const deviceView = (searchParams.get("deviceView") as "browser" | "os" | "device" | null) ?? "browser";
+  const activeFilters = useMemo(() => filterKeys.flatMap((key) => {
+    const value = searchParams.get(key);
+    return value ? [{ key, value }] : [];
+  }), [searchParams]);
 
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true);
     setProjectError(null);
+    if (demo) {
+      setProjects([demoProject]);
+      setProjectsLoading(false);
+      return;
+    }
     const result = await getProjects();
     if (result.error || !result.data) setProjectError(result.error ?? "Unable to load projects");
     else setProjects(result.data);
     setProjectsLoading(false);
-  }, []);
+  }, [demo]);
 
   useEffect(() => { void loadProjects(); }, [loadProjects]);
 
   useEffect(() => {
-    if (projects.length > 0 && !projectId) {
+    if (!demo && projects.length > 0 && !projectId) {
       const params = new URLSearchParams(searchParams.toString());
       params.set("project", projects[0]!.id);
       params.set("range", range);
       router.replace(`${pathname}?${params.toString()}`);
     }
-  }, [pathname, projectId, projects, range, router, searchParams]);
+  }, [demo, pathname, projectId, projects, range, router, searchParams]);
 
   const loadDashboard = useCallback(async () => {
-    if (!selected) return;
+    if (!activeProject) return;
     setDashboardLoading(true);
     setDashboardError(null);
-    const result = await getDashboard(selected.id, range);
-    if (result.error || !result.data) setDashboardError(result.error ?? "Unable to load dashboard");
-    else setDashboard(result.data);
+    const params = {
+      range,
+      pageView,
+      locationView,
+      deviceView,
+      ...Object.fromEntries(activeFilters.map(({ key, value }) => [key, value])),
+    };
+    if (demo) {
+      setDashboard(getDemoDashboard(params));
+    } else {
+      const result = await getDashboard(activeProject.id, params);
+      if (result.error || !result.data) setDashboardError(result.error ?? "Unable to load dashboard");
+      else setDashboard(result.data);
+    }
     setDashboardLoading(false);
-  }, [range, selected]);
+  }, [activeFilters, activeProject, demo, deviceView, locationView, pageView, range]);
 
   useEffect(() => { void loadDashboard(); }, [loadDashboard]);
 
@@ -184,16 +220,35 @@ export function DashboardClient() {
     <div className="space-y-8">
       <header className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div><p className="text-sm text-muted-foreground">Statify</p><h1 className="text-2xl font-semibold tracking-tight">Analytics</h1></div>
-        <div className="flex flex-wrap items-center gap-2"><ProjectMenu projects={projects} selected={selected} onSelect={(project) => updateUrl(router, pathname, new URLSearchParams(searchParams.toString()), "project", project.id)} onCreated={(project) => { setProjects((current) => [...current, project]); updateUrl(router, pathname, new URLSearchParams(searchParams.toString()), "project", project.id); }} /><RangeMenu range={range} onSelect={(value) => updateUrl(router, pathname, new URLSearchParams(searchParams.toString()), "range", value)} /><LogoutButton /></div>
+        <div className="flex flex-wrap items-center gap-2"><ProjectMenu demo={demo} projects={projects} selected={activeProject} onSelect={(project) => updateUrl(router, pathname, new URLSearchParams(searchParams.toString()), "project", project.id)} onCreated={(project) => { setProjects((current) => [...current, project]); updateUrl(router, pathname, new URLSearchParams(searchParams.toString()), "project", project.id); }} /><RangeMenu range={range} onSelect={(value) => updateUrl(router, pathname, new URLSearchParams(searchParams.toString()), "range", value)} />{demo ? <Button variant="outline" asChild><Link href="/">Exit demo</Link></Button> : <>{selected && <Button variant="outline" asChild><Link href={`/settings?project=${encodeURIComponent(selected.id)}`}>Settings</Link></Button>}<LogoutButton /></>}</div>
       </header>
-      {projects.length === 0 || !selected ? <EmptyProjects /> : dashboardLoading && !dashboard ? <LoadingDashboard /> : dashboardError ? <ErrorState message={dashboardError} onRetry={loadDashboard} /> : dashboard ? <>
-        {dashboard.summary.pageviews === 0 ? <EmptyState project={selected} /> : <>
+      {projects.length === 0 || !activeProject ? <EmptyProjects /> : dashboardLoading && !dashboard ? <LoadingDashboard /> : dashboardError ? <ErrorState message={dashboardError} onRetry={loadDashboard} /> : dashboard ? <>
+        {dashboard.summary.pageviews === 0 ? <EmptyState project={activeProject} /> : <>
           <div className="grid gap-4 sm:grid-cols-3"><SummaryCard label="Visitors" value={dashboard.summary.visitors} /><SummaryCard label="Page views" value={dashboard.summary.pageviews} /><SummaryCard label="Sessions" value={dashboard.summary.sessions} /></div>
           <Card><CardHeader><CardTitle>Visitors</CardTitle><CardDescription>{ranges.find(([value]) => value === range)?.[1] ?? "Last 7 days"}</CardDescription></CardHeader><CardContent><ChartContainer config={chartConfig} className="h-[320px] w-full"><AreaChart accessibilityLayer data={chartData} margin={{ left: 4, right: 12, top: 8, bottom: 0 }}><CartesianGrid vertical={false} /><XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} /><YAxis allowDecimals={false} tickLine={false} axisLine={false} width={36} /><ChartTooltip cursor={false} content={<ChartTooltipContent labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""} />} /><Area dataKey="visitors" type="monotone" fill="var(--color-visitors)" fillOpacity={0.22} stroke="var(--color-visitors)" strokeWidth={2} dot={false} /></AreaChart></ChartContainer></CardContent></Card>
+          <FilterChips filters={activeFilters} onRemove={(key) => removeSearchParam(router, pathname, searchParams, key)} />
+          <div className="grid gap-4 lg:grid-cols-2"><BreakdownCard title="Pages" rows={dashboard.pages} filterKey="page" kind="page" views={[{ value: "top", label: "Top" }, { value: "entry", label: "Entry" }]} activeView={pageView} onViewChange={(value) => setSearchParam(router, pathname, searchParams, "pageView", value)} onRowClick={setSearchParam.bind(null, router, pathname, searchParams)} /><BreakdownCard title="Referrers" rows={dashboard.referrers} filterKey="referrer" kind="referrer" onRowClick={setSearchParam.bind(null, router, pathname, searchParams)} /><BreakdownCard title="Locations" rows={dashboard.locations} filterKey="country" kind="location" views={[{ value: "country", label: "Countries" }, { value: "region", label: "Regions" }, { value: "city", label: "Cities" }]} activeView={locationView} onViewChange={(value) => setSearchParam(router, pathname, searchParams, "locationView", value)} onRowClick={(key, value) => { if (locationView === "country") setSearchParam(router, pathname, searchParams, key, value); }} /><BreakdownCard title="Devices" rows={dashboard.devices} filterKey={deviceView} kind="device" views={[{ value: "browser", label: "Browsers" }, { value: "os", label: "OS" }, { value: "device", label: "Devices" }]} activeView={deviceView} onViewChange={(value) => setSearchParam(router, pathname, searchParams, "deviceView", value)} onRowClick={setSearchParam.bind(null, router, pathname, searchParams)} /></div>
         </>}
       </> : null}
     </div>
   );
+}
+
+function setSearchParam(router: ReturnType<typeof useRouter>, pathname: string, current: URLSearchParams, key: string, value: string) {
+  const params = new URLSearchParams(current.toString());
+  params.set(key, value);
+  router.push(`${pathname}?${params.toString()}`);
+}
+
+function removeSearchParam(router: ReturnType<typeof useRouter>, pathname: string, current: URLSearchParams, key: FilterKey) {
+  const params = new URLSearchParams(current.toString());
+  params.delete(key);
+  router.push(`${pathname}?${params.toString()}`);
+}
+
+function FilterChips({ filters, onRemove }: { filters: Array<{ key: FilterKey; value: string }>; onRemove: (key: FilterKey) => void }) {
+  if (filters.length === 0) return null;
+  return <div className="flex flex-wrap items-center gap-2"><span className="text-sm text-muted-foreground">Filters:</span>{filters.map(({ key, value }) => <button key={key} type="button" className="rounded-full border bg-card px-3 py-1 text-xs hover:bg-accent" onClick={() => onRemove(key)}>{key}: {value} <span aria-hidden="true">×</span></button>)}</div>;
 }
 
 function SummaryCard({ label, value }: { label: string; value: number }) {

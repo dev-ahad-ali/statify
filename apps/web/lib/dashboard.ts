@@ -28,6 +28,21 @@ export type DashboardData = {
   devices: Array<{ dimension: string; views: number }>;
 };
 
-export function getDashboard(projectId: string, range: string): Promise<ApiResult<DashboardData>> {
-  return apiGet<DashboardData>(`/dashboard/${encodeURIComponent(projectId)}?range=${encodeURIComponent(range)}`);
+export type DashboardParams = {
+  range: string;
+  pageView?: "top" | "entry";
+  locationView?: "country" | "region" | "city";
+  deviceView?: "browser" | "os" | "device";
+  page?: string;
+  referrer?: string;
+  country?: string;
+  browser?: string;
+  os?: string;
+  device?: string;
+};
+
+export function getDashboard(projectId: string, params: DashboardParams): Promise<ApiResult<DashboardData>> {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => { if (value) query.set(key, value); });
+  return apiGet<DashboardData>(`/dashboard/${encodeURIComponent(projectId)}?${query.toString()}`);
 }
