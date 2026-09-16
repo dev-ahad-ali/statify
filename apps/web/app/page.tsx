@@ -17,9 +17,10 @@ export default function Home() {
         </CardHeader>
         <CardContent className="flex items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">The Statify web app is ready for the dashboard work.</p>
-          <Button>Get started</Button>
+          <div className="flex gap-2"><Button asChild><Link href="/signup">Get started</Link></Button><Button variant="outline" asChild><Link href="/demo">View demo</Link></Button></div>
         </CardContent>
       </Card>
     </main>
   );
 }
+import Link from "next/link";
