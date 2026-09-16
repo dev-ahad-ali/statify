@@ -1,26 +1,35 @@
-import type { Project } from "@statify/shared";
+import Link from "next/link";
+import { ArrowRight, BarChart3, Bot, Check, ChevronRight, Globe2, LockKeyhole, MousePointer2, ScanSearch, ShieldCheck, Sparkles, Users, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SceneLoader } from "@/components/landing/scene-loader";
+import { SnippetPicker } from "@/components/landing/snippet-picker";
+import { ThemeToggle } from "@/components/landing/theme-toggle";
 
-const exampleProject: Pick<Project, "name" | "domain"> = {
-  name: "Statify",
-  domain: "example.com",
-};
+const features = [
+  { icon: BarChart3, title: "Visitors and page views", text: "See what people read, when they arrive, and how your site changes over time." },
+  { icon: Users, title: "Sessions without cookies", text: "Understand visits with a lightweight, privacy-first visitor and session model." },
+  { icon: MousePointer2, title: "Useful interactions", text: "Track clicks on links and buttons without adding event code to every page." },
+  { icon: Globe2, title: "Locations and referrers", text: "Know where visits come from and which places and sources matter most." },
+  { icon: ScanSearch, title: "Browser and device data", text: "Keep the practical browser, OS, and device breakdowns your team needs." },
+  { icon: Bot, title: "AI agent visits", text: "Separate crawlers, browsing agents, and automation from human traffic." },
+  { icon: ShieldCheck, title: "Agentic readiness", text: "Check whether your content is accessible to the agents that discover it." },
+  { icon: Zap, title: "Built for the edge", text: "Cloudflare Workers and D1 keep collection close to your visitors." },
+];
+
+const steps = [["01", "Create a project", "Add your domain and copy the public API key."], ["02", "Add one script", "Paste the snippet into your site. Statify starts collecting page views."], ["03", "Read the signal", "Open your dashboard and make decisions from the traffic that matters."]];
 
 export default function Home() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-6">
-      <Card className="w-full max-w-lg">
-        <CardHeader>
-          <CardTitle>{exampleProject.name}</CardTitle>
-          <CardDescription>Privacy-first analytics for {exampleProject.domain}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">The Statify web app is ready for the dashboard work.</p>
-          <div className="flex gap-2"><Button asChild><Link href="/signup">Get started</Link></Button><Button variant="outline" asChild><Link href="/demo">View demo</Link></Button></div>
-        </CardContent>
-      </Card>
-    </main>
-  );
+  return <main className="relative isolate overflow-hidden bg-background text-foreground">
+    <div className="pointer-events-none absolute inset-0 -z-10"><SceneLoader variant="background" /><div className="absolute inset-0 bg-[radial-gradient(circle_at_top,transparent_10%,var(--background)_75%)] opacity-80" /></div>
+    <section className="relative min-h-[760px] overflow-hidden border-b border-border/50"><SceneLoader variant="hero" /><div className="absolute inset-0 -z-0 bg-[linear-gradient(180deg,transparent_25%,var(--background)_92%)]" />
+      <nav className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-8"><Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-tight"><span className="flex size-8 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 text-primary"><BarChart3 className="size-4" /></span>Statify</Link><div className="hidden items-center gap-7 text-sm text-muted-foreground md:flex"><a href="#features" className="transition-colors hover:text-foreground">Features</a><a href="#how-it-works" className="transition-colors hover:text-foreground">How it works</a><a href="#install" className="transition-colors hover:text-foreground">Install</a><Link href="/login" className="transition-colors hover:text-foreground">Sign in</Link></div><div className="flex items-center gap-2"><ThemeToggle /><Button size="sm" asChild><Link href="/signup">Get started <ArrowRight /></Link></Button></div></nav>
+      <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center px-6 pb-28 pt-28 text-center lg:pt-36"><div className="mb-7 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-background/60 px-3 py-1.5 text-xs text-primary shadow-lg shadow-primary/5 backdrop-blur"><Sparkles className="size-3.5" /> Privacy-first analytics for the open web</div><h1 className="max-w-4xl text-5xl font-semibold tracking-[-0.06em] text-balance sm:text-7xl lg:text-8xl">See the signal in your traffic.</h1><p className="mt-7 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">Statify gives you the numbers behind your website without ads, dark patterns, or a warehouse full of personal data.</p><div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row"><Button size="lg" asChild><Link href="/signup">Start tracking free <ArrowRight /></Link></Button><Button size="lg" variant="outline" asChild><Link href="/demo">Explore the demo <ChevronRight /></Link></Button></div><p className="mt-5 text-xs text-muted-foreground">Self-hosted on Cloudflare. No credit card. No tracking your visitors for advertising.</p></div>
+      <div className="absolute bottom-8 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-muted-foreground"><span className="h-px w-8 bg-border" />Live signal <span className="h-px w-8 bg-border" /></div>
+    </section>
+    <section id="features" className="relative mx-auto max-w-7xl px-6 py-28 lg:px-8"><div className="max-w-2xl"><p className="text-sm font-medium uppercase tracking-[0.2em] text-primary">Everything worth knowing</p><h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">Analytics that respects the person behind the visit.</h2><p className="mt-5 text-muted-foreground">The dashboard stays focused on useful product questions. What brought people here? What did they read? What should you improve next?</p></div><div className="mt-14 grid gap-px overflow-hidden rounded-2xl border border-border/70 bg-border/70 sm:grid-cols-2 lg:grid-cols-4">{features.map(({ icon: Icon, title, text }) => <article key={title} className="group bg-background/85 p-6 backdrop-blur transition-colors hover:bg-card"><Icon className="size-5 text-primary transition-transform group-hover:scale-110" /><h3 className="mt-12 text-base font-medium">{title}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p></article>)}</div></section>
+    <section id="how-it-works" className="relative border-y border-border/60 bg-card/35"><div className="mx-auto max-w-7xl px-6 py-28 lg:px-8"><div className="flex flex-col justify-between gap-8 md:flex-row md:items-end"><div><p className="text-sm font-medium uppercase tracking-[0.2em] text-primary">How it works</p><h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">One small script. A clearer view.</h2></div><p className="max-w-md text-sm leading-6 text-muted-foreground">Statify collects a small event payload, enriches it at the edge, and gives you the result without asking you to become a data engineer.</p></div><div className="mt-16 grid gap-10 md:grid-cols-3">{steps.map(([number, title, text]) => <div key={number} className="border-t border-primary/35 pt-5"><span className="font-mono text-xs text-primary">{number}</span><h3 className="mt-10 text-xl font-medium">{title}</h3><p className="mt-3 text-sm leading-6 text-muted-foreground">{text}</p></div>)}</div></div></section>
+    <section id="install" className="relative mx-auto max-w-7xl px-6 py-28 lg:px-8"><div className="grid items-center gap-12 lg:grid-cols-[0.8fr_1.2fr]"><div><p className="text-sm font-medium uppercase tracking-[0.2em] text-primary">Start in minutes</p><h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">Drop in the snippet. Keep building.</h2><p className="mt-5 max-w-md text-muted-foreground">Choose your stack and copy a ready-to-paste install. Your API key is safe to expose in the browser. It only identifies the project receiving events.</p><ul className="mt-8 space-y-4 text-sm text-muted-foreground"><li className="flex gap-3"><Check className="mt-0.5 size-4 text-primary" /> No cookies or third-party scripts</li><li className="flex gap-3"><Check className="mt-0.5 size-4 text-primary" /> Small, asynchronous browser snippet</li><li className="flex gap-3"><Check className="mt-0.5 size-4 text-primary" /> Works with server-side events too</li></ul></div><SnippetPicker /></div></section>
+    <section className="relative mx-6 mb-20 overflow-hidden rounded-3xl border border-primary/25 bg-primary/10 px-6 py-20 text-center sm:px-12"><div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(75,210,240,.12),transparent_55%)]" /><div className="relative"><LockKeyhole className="mx-auto size-6 text-primary" /><h2 className="mt-5 text-3xl font-semibold tracking-tight sm:text-5xl">Your traffic. Your decisions.</h2><p className="mx-auto mt-4 max-w-xl text-muted-foreground">Start with the basics, then grow into agent tracking, site audits, and the questions your product actually needs answered.</p><Button className="mt-8" size="lg" asChild><Link href="/signup">Create your project <ArrowRight /></Link></Button></div></section>
+    <footer className="border-t border-border/60"><div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between lg:px-8"><Link href="/" className="font-medium text-foreground">Statify</Link><div className="flex items-center gap-5"><a href="https://github.com/dev-ahad-ali/statify" target="_blank" rel="noreferrer" className="hover:text-foreground">GitHub</a><span>AGPL-3.0</span><span>Built for the open web</span></div></div></footer>
+  </main>;
 }
-import Link from "next/link";
