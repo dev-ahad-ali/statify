@@ -380,14 +380,14 @@ The API can also be run with `bunx wrangler dev --local` from `apps/api`. When t
 - DEV-29: modular audits API, PageSpeed Insights mobile audits, Lighthouse category and CrUX field-data storage, authenticated manual runs with a ten-minute KV cooldown, and a 03:00 UTC Worker cron capped at 200 active projects with a one-second project gap.
 - DEV-30: fetch-only agentic-browsing audit checks for robots.txt, llms.txt, sitemap references, structured data, semantic HTML, no-JS content, Web Bot Auth hints, and metadata. The weighted checklist produces a 0-100 score and is stored with the raw audit JSON; network checks use a ten-second timeout and Statify audit user agent.
 - DEV-31: owner-scoped audit history endpoint, score gauges, history chart, Core Web Vitals status cards, agentic checklist, manual Run now control, project selection, and demo audits at `/dashboard/audits` and `/demo/audits`.
+- DEV-32: dark-by-default theme with a light-mode toggle, the Statify landing page, gateway-flow hero canvas, constellation background canvas, Orbit-style feature/how-it-works/install/CTA sections, framework snippet picker, demo and sign-in links, GitHub footer, and lazy client-only scene loading.
 
 ### Next implementation order
 
 The remaining plan is ordered around dependencies:
 
-1. DEV-32: landing page, three.js scene, feature grid, and snippet picker.
-2. DEV-33: optional real-user Web Vitals.
-3. DEV-34: rate limits, retention, final security review, documentation, and production release.
+1. DEV-33: optional real-user Web Vitals.
+2. DEV-34: rate limits, retention, final security review, documentation, and production release.
 
 ## Known gaps to keep in mind
 
@@ -395,6 +395,7 @@ The remaining plan is ordered around dependencies:
 - The audit runner requires `PSI_API_KEY` in the API environment. The production and staging secrets must be configured separately; the key is intentionally absent from Wrangler vars and source control.
 - PSI and agentic checks are currently run in the same scheduled/manual audit request. A failed project is logged and does not prevent later projects from running.
 - Field LCP/INP/CLS values come from PSI CrUX loading experience when Google has data for the audited origin; they may be null for low-traffic sites.
+- The landing scenes are self-contained Canvas 2D components based on the supplied Gateway Flow source. The supplied text bundle references missing `@designcodeio/threeui` raw shader files, so the app does not depend on that unavailable package.
 - DEV-17 records the planned browser/server page-view deduplication. That logic is not implemented yet; the dashboard currently counts browser page-view events and future server-event integration must add the deduplication rule.
 - Browser API keys are public by design. Origin validation limits accidental cross-site use but cannot stop a client from replaying a public key.
 - `apps/web/public/statify.js` is a generated copy of the SDK bundle. The root Turbo web build regenerates it before the Pages build.
