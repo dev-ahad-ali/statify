@@ -136,7 +136,12 @@ function vitalRollup(db: D1Database, projectId: string, event: QueuedEvent): D1P
   )];
 }
 
-export async function writeEventBatch(db: D1Database, projectId: string, events: QueuedEvent[]) {
-  const statements = events.flatMap((event) => [eventStatement(db, projectId, event), ...(event.type === "page_view" ? pageViewRollups(db, projectId, event) : []), ...agentRollup(db, projectId, event), ...vitalRollup(db, projectId, event)]);
+export async function writeEventBatch(db: D1Database, projectId: string, events: QueuedEvent[], writeRawEvents = true) {
+  const statements = events.flatMap((event) => [
+    ...(writeRawEvents ? [eventStatement(db, projectId, event)] : []),
+    ...(event.type === "page_view" ? pageViewRollups(db, projectId, event) : []),
+    ...agentRollup(db, projectId, event),
+    ...vitalRollup(db, projectId, event),
+  ]);
   await db.batch(statements);
 }

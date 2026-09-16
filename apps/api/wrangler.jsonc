@@ -45,7 +45,7 @@
         "WEB_URL": "https://statify-staging.pages.dev",
       },
       "triggers": {
-        "crons": ["0 3 * * *"],
+        "crons": ["0 3 * * *", "0 4 * * 0"],
       },
     },
     "prod": {
@@ -69,7 +69,7 @@
         "WEB_URL": "https://statify-app.pages.dev",
       },
       "triggers": {
-        "crons": ["0 3 * * *"],
+        "crons": ["0 3 * * *", "0 4 * * 0"],
       },
     },
   },
