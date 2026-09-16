@@ -14,7 +14,9 @@ export async function listAuditsController(req: Request, res: Response) {
   const parsed = Number(req.query.limit ?? 30);
   const limit = Number.isInteger(parsed) ? Math.min(Math.max(parsed, 1), 30) : 30;
   const rows = await repository.listOwned(project.id, requireUserId(req), limit);
-  return success(res, "Audits retrieved", rows.results.map(serializeAudit));
+  const vitals = await repository.listFieldVitals(project.id, requireUserId(req));
+  const field = Object.fromEntries(vitals.results.map((vital) => [vital.name, { count: vital.count, mean: vital.count ? vital.total / vital.count : null }]));
+  return success(res, "Audits retrieved", { audits: rows.results.map(serializeAudit), field });
 }
 
 export async function runAuditController(req: Request, res: Response) {

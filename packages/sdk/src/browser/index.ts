@@ -2,6 +2,7 @@ import type { IngestPayload } from "@statify/shared";
 import { createBatcher } from "./batcher.js";
 import { readConfig } from "./config.js";
 import { createTracker } from "./tracker.js";
+import { trackWebVitals } from "./tracker.js";
 
 const config = readConfig();
 if (config) {
@@ -12,6 +13,7 @@ if (config) {
     events,
   }));
   const tracker = createTracker(queue);
+  trackWebVitals(queue);
   getContext = tracker.context;
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") tracker.flush(true);

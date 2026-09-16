@@ -17,6 +17,10 @@ function optionalString(value: unknown) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function optionalNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 function getOriginHostname(origin: string | undefined) {
   if (!origin) throw new IngestOriginError("Origin is required");
   try {
@@ -74,6 +78,9 @@ function enrichEvent(event: Event, context: IngestContext, receivedAt: number, c
     agentHarness: classification.harness ?? null,
     agentConfidence: classification.confidence.toFixed(1),
     source: event.source ?? "browser",
+    vitalName: optionalString(properties.vitalName),
+    vitalValue: optionalNumber(properties.vitalValue),
+    vitalRating: optionalString(properties.vitalRating),
   };
 }
 
