@@ -1,0 +1,22 @@
+{
+  "GPTBot": { "vendor": "OpenAI", "category": "crawler" },
+  "ChatGPT-User": { "vendor": "OpenAI", "category": "agent", "harness": "ChatGPT" },
+  "OAI-SearchBot": { "vendor": "OpenAI", "category": "crawler" },
+  "ClaudeBot": { "vendor": "Anthropic", "category": "crawler" },
+  "Claude-User": { "vendor": "Anthropic", "category": "agent", "harness": "Claude" },
+  "Claude-SearchBot": { "vendor": "Anthropic", "category": "crawler" },
+  "anthropic-ai": { "vendor": "Anthropic", "category": "crawler" },
+  "PerplexityBot": { "vendor": "Perplexity", "category": "crawler" },
+  "Perplexity-User": { "vendor": "Perplexity", "category": "agent", "harness": "Perplexity" },
+  "Google-Extended": { "vendor": "Google", "category": "crawler" },
+  "Googlebot": { "vendor": "Google", "category": "crawler" },
+  "Bytespider": { "vendor": "ByteDance", "category": "crawler" },
+  "CCBot": { "vendor": "Common Crawl", "category": "crawler" },
+  "Amazonbot": { "vendor": "Amazon", "category": "crawler" },
+  "Applebot-Extended": { "vendor": "Apple", "category": "crawler" },
+  "meta-externalagent": { "vendor": "Meta", "category": "crawler" },
+  "cohere-ai": { "vendor": "Cohere", "category": "crawler" },
+  "DuckAssistBot": { "vendor": "DuckDuckGo", "category": "crawler" },
+  "YouBot": { "vendor": "You.com", "category": "crawler" },
+  "Bingbot": { "vendor": "Microsoft", "category": "crawler" }
+}
