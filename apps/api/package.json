@@ -8,12 +8,20 @@
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "deploy": "wrangler deploy",
-    "types": "wrangler types"
+    "types": "wrangler types",
+    "db:migrate": "wrangler d1 migrations apply DB --local",
+    "db:seed": "wrangler d1 execute DB --local --file=seed.sql",
+    "db:fresh": "rm -rf .wrangler/state/v3/d1 && bun run db:migrate && bun run db:seed"
   },
   "dependencies": {
-    "@statify/shared": "*"
+    "@statify/shared": "*",
+    "express": "^5.2.1",
+    "jose": "^6.2.12",
+    "ua-parser-js": "^2.0.10",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "26.4.1",
     "typescript": "7.0.2",
     "wrangler": "4.129.1"

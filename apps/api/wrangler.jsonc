@@ -19,6 +19,10 @@
       "id": "cc6e282bb46e4a52b912a83feb2ada9c",
     },
   ],
+  "vars": {
+    "ENVIRONMENT": "development",
+    "WEB_URL": "http://localhost:3000",
+  },
   "env": {
     "staging": {
       "name": "statify-api-staging",
@@ -36,8 +40,12 @@
           "id": "cc6e282bb46e4a52b912a83feb2ada9c",
         },
       ],
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "WEB_URL": "https://statify-staging.pages.dev",
+      },
       "triggers": {
-        "crons": ["0 0 * * *"],
+        "crons": ["0 3 * * *", "0 4 * * SUN"],
       },
     },
     "prod": {
@@ -56,8 +64,12 @@
           "id": "401cf03873b24f2aa8ab5a55fcb92ede",
         },
       ],
+      "vars": {
+        "ENVIRONMENT": "production",
+        "WEB_URL": "https://statify-app.pages.dev",
+      },
       "triggers": {
-        "crons": ["0 0 * * *"],
+        "crons": ["0 3 * * *", "0 4 * * SUN"],
       },
     },
   },
