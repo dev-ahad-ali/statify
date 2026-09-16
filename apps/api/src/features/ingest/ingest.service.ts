@@ -1,4 +1,4 @@
-import { ingestPayloadSchema, type Event } from "@statify/shared";
+import { classify, ingestPayloadSchema, verifyWebBotAuth, type AgentClassification, type Event } from "@statify/shared";
 import { waitUntil } from "cloudflare:workers";
 import { UAParser } from "ua-parser-js";
 import { runtimeEnv } from "../../config/env.js";
@@ -11,6 +11,7 @@ export class IngestUnauthorizedError extends Error {}
 export class IngestOriginError extends Error {}
 
 type IngestRequest = { cf?: Record<string, string | undefined> };
+type ForwardedHeaders = Record<string, string | undefined>;
 
 function optionalString(value: unknown) {
   return typeof value === "string" && value.length > 0 ? value : null;
@@ -39,7 +40,7 @@ async function lookupProject(apiKey: string, repository: IngestRepository): Prom
   return project;
 }
 
-function enrichEvent(event: Event, context: IngestContext, receivedAt: number): QueuedEvent {
+function enrichEvent(event: Event, context: IngestContext, receivedAt: number, classification: AgentClassification): QueuedEvent {
   const properties = event.properties;
   return {
     id: randomId(),
@@ -68,15 +69,15 @@ function enrichEvent(event: Event, context: IngestContext, receivedAt: number): 
     region: context.region,
     city: context.city,
     timezone: context.timezone,
-    agentCategory: optionalString(properties.agentCategory),
-    agentVendor: optionalString(properties.agentVendor),
-    agentHarness: optionalString(properties.agentHarness),
-    agentConfidence: optionalString(properties.agentConfidence),
+    agentCategory: classification.category,
+    agentVendor: classification.vendor ?? null,
+    agentHarness: classification.harness ?? null,
+    agentConfidence: classification.confidence.toFixed(1),
     source: event.source ?? "browser",
   };
 }
 
-export async function queueIngest(rawBody: string, origin: string | undefined, userAgent: string, cf: Record<string, string | undefined> | undefined, repository: IngestRepository) {
+export async function queueIngest(rawBody: string, origin: string | undefined, userAgent: string, headers: ForwardedHeaders, cf: Record<string, string | undefined> | undefined, repository: IngestRepository) {
   let input: unknown;
   try {
     input = JSON.parse(rawBody);
@@ -116,7 +117,18 @@ export async function queueIngest(rawBody: string, origin: string | undefined, u
     timezone: cf?.timezone ?? "unknown",
   };
   const receivedAt = Date.now();
-  const events = parsed.data.events.map((event) => enrichEvent(event, context, receivedAt));
+  const firstProperties = parsed.data.events[0]?.properties ?? {};
+  const verification = await verifyWebBotAuth({
+    method: headers["x-statify-original-method"] ?? "GET",
+    url: headers["x-statify-original-url"] ?? `https://${context.hostname}${optionalString(firstProperties.path) ?? "/"}`,
+    headers,
+    signature: headers.signature,
+    signatureInput: headers["signature-input"],
+    signatureAgent: headers["signature-agent"],
+  }, runtimeEnv.CACHE);
+  const signaturePresent = Boolean(headers.signature || headers["signature-input"] || headers["signature-agent"]);
+  const classification = classify({ userAgent, headers, automation: parsed.data.context.automation, verified: verification.verified ? { vendor: verification.vendor ?? "unknown", model: verification.model } : undefined, signatureFailed: signaturePresent && !verification.verified });
+  const events = parsed.data.events.map((event) => enrichEvent(event, context, receivedAt, classification));
 
   waitUntil(
     writeEventBatch(runtimeEnv.DB, project.projectId, events).catch((error: unknown) => {

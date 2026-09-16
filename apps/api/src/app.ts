@@ -5,6 +5,7 @@ import { projectsRouter } from "./features/projects/projects.routes.js";
 import { ingestRouter } from "./features/ingest/ingest.routes.js";
 import { dashboardRouter } from "./features/dashboard/dashboard.routes.js";
 import { failure } from "./lib/response.js";
+import { auditsRouter } from "./features/audits/audits.routes.js";
 
 export function createApp(): Express {
   const app = express();
@@ -14,6 +15,7 @@ export function createApp(): Express {
   app.use("/projects", projectsRouter);
   app.use("/ingest", ingestRouter);
   app.use("/dashboard", dashboardRouter);
+  app.use("/audits", auditsRouter);
   app.use((_req, res) => failure(res, "Not found", 404));
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     console.error("request failed", err);

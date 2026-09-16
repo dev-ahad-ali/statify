@@ -8,6 +8,8 @@
     "./schemas": "./src/schemas.ts",
     "./snippets": "./src/snippets.ts",
     "./types": "./src/types.ts"
+    ,"./agents": "./src/agents.ts"
+    ,"./web-bot-auth": "./src/web-bot-auth.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

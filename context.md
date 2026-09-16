@@ -1,12 +1,12 @@
 # Statify handoff context
 
-This file describes the repository as it exists after DEV-25. It is meant to give another developer or coding agent enough context to continue with the next ticket without reconstructing the project from scratch.
+This file describes the repository as it exists after DEV-28. It is meant to give another developer or coding agent enough context to continue with the next ticket without reconstructing the project from scratch.
 
 ## Current state
 
 - Repository: `dev-ahad-ali/statify`
 - Active working branch: `staging`
-- Latest feature commits: `3c30217 feat: add project settings` and `5f5d6d2 feat: add seeded demo dashboard`
+- Latest feature commits: `a320815 feat: add agent classifier`, `73a6d7f feat: verify web bot auth signatures`, and `73bcf2e feat: add agent analytics dashboard`
 - The staging branch also includes the remote merge that happened after DEV-19 was pushed.
 - API runtime: Express on a Cloudflare Worker through `cloudflare:node` and `httpServerHandler`
 - Web runtime: Next.js static export deployed to Cloudflare Pages
@@ -15,7 +15,7 @@ This file describes the repository as it exists after DEV-25. It is meant to giv
 - Package manager: Bun 1.4.0
 - Monorepo runner: Turborepo
 
-The current Linear workspace has completed tickets DEV-5 through DEV-25. DEV-26 is the next implementation ticket. The CLI audit did not find issues DEV-1 through DEV-4 in the current workspace, so do not assume those identifiers are available when linking future work.
+The current Linear workspace has completed tickets DEV-5 through DEV-28. DEV-29 is the next implementation ticket. The CLI audit did not find issues DEV-1 through DEV-4 in the current workspace, so do not assume those identifiers are available when linking future work.
 
 ## Repository layout
 
@@ -264,6 +264,20 @@ DEV-25 adds a public `/demo` route. It wraps the shared dashboard client in `com
 
 The landing page now links to `/demo` beside the signup CTA. Keep this route unauthenticated and keep future demo mutations behind the same toast behavior.
 
+## Agent detection and Web Bot Auth
+
+DEV-26 adds `packages/shared/src/agents.ts` and `packages/shared/src/agents/list.json`. `classify` checks verified Web Bot Auth first, then the declared UA list, then automation markers, and finally returns `human`. It returns category, vendor, harness, optional explicit `X-Agent-Model`, confidence, and a signature-failure flag. It never infers a model from a user agent. The shared test table covers 30 user-agent cases.
+
+DEV-27 adds `packages/shared/src/web-bot-auth.ts`. It parses `Signature`, `Signature-Input`, and `Signature-Agent`, fetches and KV-caches the vendor directory for 24 hours, rebuilds the RFC 9421 signature base, and verifies Ed25519 with Web Crypto. Failed signatures fall back to UA classification and set `signatureFailed` in the classifier result. The server SDK forwards the signature headers and original request method/URL to ingest.
+
+Ingest now classifies every event and overwrites client-supplied agent fields. It stores `agent_category`, `agent_vendor`, `agent_harness`, and one-decimal `agent_confidence` in `events`. The agent rollup writes every classified event, including server requests, to `daily_agents`; page-view rollups continue to write their existing dimension tables.
+
+## Agent analytics
+
+DEV-28 adds `GET /dashboard/:projectId/agents?range=...&vendor=...` under the existing owner-checked dashboard router. `apps/api/src/features/agents` returns agent visits by day and category, vendor confidence, harness, top paths, and human-versus-agent totals. The data comes from `daily_agents`, with paths read from classified events.
+
+The UI is at `/dashboard/agents`, with a matching unauthenticated `/demo/agents` route. It has a stacked category area chart, range/vendor controls, summary cards, and vendor, harness, and path lists. Demo agent data comes from the fixed-seed data in `lib/demo.ts`. The main dashboard header links to the agents page.
+
 ## Dashboard API
 
 DEV-21 added the modular dashboard feature under `apps/api/src/features/dashboard`:
@@ -360,25 +374,28 @@ The API can also be run with `bunx wrangler dev --local` from `apps/api`. When t
 - DEV-23: reusable pages, referrers, locations, and device breakdown cards, URL filters, filter chips, country names and flags, and device percentage bars.
 - DEV-24: settings route, project rename, API-key copy and rotation, allowed-domain management, highlighted install snippets, and typed-domain deletion.
 - DEV-25: public demo route, demo context, fixed-seed Faker dashboard data, local demo filters, future agent and audit seed exports, mutation toast, and landing-page demo link.
+- DEV-26: shared agent UA list, four-way classifier, explicit model handling, ingest classification, and 30-case UA tests.
+- DEV-27: shared RFC 9421 Web Bot Auth parser and Ed25519 verifier, 24-hour KV directory cache, SDK header forwarding, and tampered-signature tests.
+- DEV-28: classified-event agent rollups, owner-scoped agents API, agent dashboard and demo agents page, stacked category chart, vendor confidence, harness/path lists, and human-versus-agent ratio.
+- DEV-29: modular audits API, PageSpeed Insights mobile audits, Lighthouse category and CrUX field-data storage, authenticated manual runs with a ten-minute KV cooldown, and a 03:00 UTC Worker cron capped at 200 active projects with a one-second project gap.
+- DEV-30: fetch-only agentic-browsing audit checks for robots.txt, llms.txt, sitemap references, structured data, semantic HTML, no-JS content, Web Bot Auth hints, and metadata. The weighted checklist produces a 0-100 score and is stored with the raw audit JSON; network checks use a ten-second timeout and Statify audit user agent.
+- DEV-31: owner-scoped audit history endpoint, score gauges, history chart, Core Web Vitals status cards, agentic checklist, manual Run now control, project selection, and demo audits at `/dashboard/audits` and `/demo/audits`.
+- DEV-32: dark-by-default theme with a light-mode toggle, the Statify landing page, gateway-flow hero canvas, constellation background canvas, Orbit-style feature/how-it-works/install/CTA sections, framework snippet picker, demo and sign-in links, GitHub footer, and lazy client-only scene loading.
 
 ### Next implementation order
 
 The remaining plan is ordered around dependencies:
 
-1. DEV-26: agent user-agent list and classifier.
-2. DEV-27: Web Bot Auth signature verification.
-3. DEV-28: agent rollups, API, dashboard section, and demo data.
-4. DEV-29: PageSpeed Insights cron and manual audit trigger.
-5. DEV-30: fetch-based agentic browsing score.
-6. DEV-31: audit UI and history.
-7. DEV-32: landing page, three.js scene, feature grid, and snippet picker.
-8. DEV-33: optional real-user Web Vitals.
-9. DEV-34: rate limits, retention, final security review, documentation, and production release.
+1. DEV-33: optional real-user Web Vitals.
+2. DEV-34: rate limits, retention, final security review, documentation, and production release.
 
 ## Known gaps to keep in mind
 
-- The dashboard API, overview, breakdown cards, settings, and demo mode are implemented. Agent views, audit views, and the full landing page remain future tickets.
-- The API schema already contains audit and agent rollup tables, but the agent classifier, Web Bot Auth verifier, and audit cron are future tickets.
+- The dashboard API, overview, breakdown cards, settings, demo mode, agent views, and audit views are implemented. The full landing page remains future work.
+- The audit runner requires `PSI_API_KEY` in the API environment. The production and staging secrets must be configured separately; the key is intentionally absent from Wrangler vars and source control.
+- PSI and agentic checks are currently run in the same scheduled/manual audit request. A failed project is logged and does not prevent later projects from running.
+- Field LCP/INP/CLS values come from PSI CrUX loading experience when Google has data for the audited origin; they may be null for low-traffic sites.
+- The landing scenes are self-contained Canvas 2D components based on the supplied Gateway Flow source. The supplied text bundle references missing `@designcodeio/threeui` raw shader files, so the app does not depend on that unavailable package.
 - DEV-17 records the planned browser/server page-view deduplication. That logic is not implemented yet; the dashboard currently counts browser page-view events and future server-event integration must add the deduplication rule.
 - Browser API keys are public by design. Origin validation limits accidental cross-site use but cannot stop a client from replaying a public key.
 - `apps/web/public/statify.js` is a generated copy of the SDK bundle. The root Turbo web build regenerates it before the Pages build.
