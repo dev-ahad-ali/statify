@@ -7,6 +7,7 @@ import { clearAuthCookies, setAuthCookies } from "./auth.cookies.js";
 import { AuthConflictError, AUTH_ERROR, InvalidRefreshTokenError, forgotPassword, login, refresh, resetPassword, signup } from "./auth.service.js";
 import { AuthRepository } from "./auth.repository.js";
 import { readCookie } from "./auth.middleware.js";
+import { enforceRateLimit, hashedRateLimitKey, RateLimitError } from "../../lib/rate-limit.js";
 
 const repository = new AuthRepository(runtimeEnv.DB);
 
@@ -23,6 +24,7 @@ export async function signupController(req: Request, res: Response) {
 }
 
 export async function loginController(req: Request, res: Response) {
+  try { await enforceRateLimit(runtimeEnv.CACHE, await hashedRateLimitKey("auth-login", clientAddress(req)), 10, 60); } catch (error) { if (error instanceof RateLimitError) return failure(res, error.message, 429); throw error; }
   const result = await login(repository, req.body);
   if (result.kind === "invalid") return failure(res, AUTH_ERROR, 401);
   setAuthCookies(res, result.result.accessToken, result.result.refreshToken);
@@ -48,6 +50,7 @@ export async function logoutController(req: Request, res: Response) {
 }
 
 export async function forgotController(req: Request, res: Response) {
+  try { await enforceRateLimit(runtimeEnv.CACHE, await hashedRateLimitKey("auth-forgot", clientAddress(req)), 10, 60); } catch (error) { if (error instanceof RateLimitError) return failure(res, error.message, 429); throw error; }
   const parsed = forgotPasswordSchema.safeParse(req.body);
   if (parsed.success) {
     try {
@@ -57,6 +60,10 @@ export async function forgotController(req: Request, res: Response) {
     }
   }
   return success(res, "If an account exists, a password reset link has been sent", null);
+}
+
+function clientAddress(req: Request) {
+  return req.header("cf-connecting-ip") ?? req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? req.ip ?? "unknown";
 }
 
 export async function resetController(req: Request, res: Response) {

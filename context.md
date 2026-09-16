@@ -1,415 +1,285 @@
-# Statify handoff context
+# Statify engineering handoff
 
-This file describes the repository as it exists after DEV-28. It is meant to give another developer or coding agent enough context to continue with the next ticket without reconstructing the project from scratch.
+This document describes the repository as it exists after DEV-33 and DEV-34. It is written for the next engineer or agent who needs to make a change without reconstructing the whole system first.
 
-## Current state
+## Product and runtime
 
-- Repository: `dev-ahad-ali/statify`
-- Active working branch: `staging`
-- Latest feature commits: `a320815 feat: add agent classifier`, `73a6d7f feat: verify web bot auth signatures`, and `73bcf2e feat: add agent analytics dashboard`
-- The staging branch also includes the remote merge that happened after DEV-19 was pushed.
-- API runtime: Express on a Cloudflare Worker through `cloudflare:node` and `httpServerHandler`
-- Web runtime: Next.js static export deployed to Cloudflare Pages
-- Database: Cloudflare D1
-- Cache: Cloudflare KV
-- Package manager: Bun 1.4.0
-- Monorepo runner: Turborepo
+Statify is a privacy-first, self-hosted analytics product. A customer creates a project for a domain, receives a public browser API key, installs `statify.js`, and reads the resulting traffic in a dashboard. The product tracks page views, sessions, clicks, entry pages, referrers, country/region/city, browser/OS/device, AI-agent traffic, site audits, and real-user Web Vitals.
 
-The current Linear workspace has completed tickets DEV-5 through DEV-28. DEV-29 is the next implementation ticket. The CLI audit did not find issues DEV-1 through DEV-4 in the current workspace, so do not assume those identifiers are available when linking future work.
-
-## Repository layout
+The runtime has no always-on server:
 
 ```text
-apps/api/                 Express API Worker, D1 migrations, seed data
-apps/web/                 Next.js app, static Pages output, Pages API proxy, shadcn UI
-packages/sdk/             Browser snippet and server middleware
-packages/shared/          Zod schemas, TypeScript types, rollup constants, snippets
-.github/workflows/        Pull request, staging, and production workflows
+Customer site
+   │ statify.js or server SDK
+   ▼
+Cloudflare Worker API, Express through cloudflare:node
+   ├── D1: users, projects, raw events, rollups, audits, vitals
+   ├── KV: API-key cache, owner cache, rate limits, D1 budget counter
+   └── cron: PSI/agentic audits and raw-event retention
+   ▲
+Cloudflare Pages static Next.js app
+   └── /api/* Pages Function proxies to the Worker
 ```
 
-The API and web apps do not import each other at runtime. Both use contracts from `@statify/shared`. The SDK imports the shared ingest types and is built before the web app when Turbo runs the web build.
+Bun is the package manager and local task runner. It is not the production runtime. Turborepo runs the workspaces. TypeScript is used throughout.
 
-## Deployment model
-
-The frontend is on Cloudflare Pages. It is not an OpenNext or frontend Worker deployment.
-
-| Environment | Web | API Worker | Pages project | API environment |
-| --- | --- | --- | --- | --- |
-| Staging | `https://statify-staging.pages.dev` | `https://statify-api-staging.ahadali-dev.workers.dev` | `statify-staging` | `staging` |
-| Production | `https://statify-app.pages.dev` | `https://statify-api-prod.ahadali-dev.workers.dev` | `statify-app` | `prod` |
-
-`apps/web/next.config.js` sets `output: "export"`. Next writes the static site to `apps/web/out`. `apps/web/wrangler.jsonc` and `apps/web/wrangler.staging.jsonc` set `pages_build_output_dir` to `./out` and contain the environment URLs.
-
-The web app now uses Tailwind CSS 4 through `apps/web/postcss.config.mjs`. `apps/web/components.json` configures shadcn with the `new-york` style, CSS variables, the neutral base color, the Lucide icon library, and the `@/*` aliases. `apps/web/app/globals.css` contains the requested black-and-white OKLCH light and dark theme, including chart, sidebar, font, radius, and shadow variables.
-
-The Pages Function at `apps/web/functions/api/[[path]].ts` proxies `/api/*` to the API Worker. It copies request headers, including cookies, forwards the request body for non-GET methods, and returns the upstream status, headers, and body. This keeps dashboard authentication cookies first-party on the Pages origin.
-
-The Pages static headers file at `apps/web/public/_headers` sets:
+## Repository map
 
 ```text
-/statify.js
-  Cache-Control: public, max-age=3600
+apps/api/
+  src/index.ts                  Worker entry and cron handler
+  src/app.ts                    Express app and router mounting
+  src/config/env.ts             Worker bindings and secrets
+  src/features/<feature>/       routes, controllers, services, repositories
+  src/lib/                      response, crypto, rate limiting
+  migrations/                   ordered D1 schema changes
+  wrangler.jsonc                local, staging, and production bindings
+
+apps/web/
+  app/                          Next routes and route groups
+  components/                   auth, dashboard, audits, landing, settings, UI
+  lib/                          API client and typed feature clients
+  functions/api/[[path]].ts     Pages-to-Worker proxy
+  next.config.js                static export configuration
+
+packages/sdk/
+  src/browser/                  browser tracker, identity, batching, sender
+  src/server/                   Express and Next middleware
+  tsup.config.ts                browser bundle build
+
+packages/shared/
+  src/schemas.ts                Zod request schemas
+  src/types.ts                  shared event and project types
+  src/rollups.ts                rollup table and column constants
+  src/agents.ts                 agent classifier
+  src/web-bot-auth.ts           Web Bot Auth verification
+  src/snippets.ts                framework install snippets
 ```
 
-### CI and deployment
+## API request model
 
-`.github/workflows/staging.yml` runs on pushes to `staging`. `.github/workflows/prod.yml` runs on pushes to `main`. Both workflows:
-
-1. Install Bun dependencies.
-2. Run the root typecheck job first.
-3. Apply remote D1 migrations and deploy the API Worker.
-4. Run `bun run build --filter=web` from the repository root. This builds the SDK first and then the static Next app.
-5. Deploy `apps/web/out` with `wrangler pages deploy` to the correct Pages project.
-
-The API jobs use `wrangler deploy --env staging` or `--env prod`. The web jobs use the Pages-specific Wrangler command. Do not change the web job back to `wrangler deploy` or OpenNext unless the deployment architecture is intentionally redesigned.
-
-The pull request workflow checks root typechecking and requires `staging` as the source branch for pull requests into `main`. GitHub branch protection was configured separately for `main`. The latest DEV-19 staging run completed successfully for commit `0239a3d`.
-
-## API architecture
-
-The API is intentionally modular. Each feature owns its routes, controllers, services, and repository code.
+`apps/api/src/app.ts` creates one Express app, installs JSON parsing with a 32 KB limit, mounts routers, returns a standard 404 envelope, and logs uncaught errors. The routers are:
 
 ```text
-apps/api/src/app.ts
-  /health    features/health/health.routes.ts
-  /auth      features/auth/{auth.routes,auth.controller,auth.service,auth.repository}.ts
-  /projects  features/projects/{projects.routes,projects.controller,projects.service,projects.repository}.ts
-  /ingest    features/ingest/{ingest.routes,ingest.controller,ingest.service,ingest.repository,rollup.service}.ts
+/health
+/auth
+/projects
+/ingest
+/dashboard
+/audits
 ```
 
-`apps/api/src/index.ts` starts Express on port 8787 and exports `httpServerHandler({ port: 8787 })` for Workers. `apps/api/src/config/env.ts` reads the D1, KV, environment, web URL, and secret bindings.
+The default export in `apps/api/src/index.ts` uses `httpServerHandler({ port: 8787 })`. The `nodejs_compat` Wrangler flag is required. `createApp().listen(8787)` initializes Express for the Workers Node compatibility adapter.
 
-Responses use the helpers in `apps/api/src/lib/response.ts`. Authentication is handled by `requireAuth` in the auth feature and adds `req.userId` to the Express request.
+The API uses this response shape for normal JSON endpoints:
 
-### Authentication
-
-- Passwords use Web Crypto PBKDF2-SHA256 with a random 16-byte salt and 100,000 iterations.
-- Password storage is `saltHex:hashHex`.
-- `jose` signs HS256 access and refresh JWTs with separate secrets.
-- Access tokens expire after 15 minutes.
-- Refresh tokens expire after 30 days and are stored in D1 by SHA-256 hash.
-- Refresh rotation replaces the old stored token hash. Reuse or expiry invalidates the user's refresh tokens.
-- Cookies are HTTP-only, `sameSite=lax`, secure outside development, path `/`, and use max ages matching the JWT lifetimes.
-- Routes are signup, login, refresh, logout, forgot, reset, and authenticated `/auth/me`.
-- Reset tokens are random 32-byte values. Only their hashes are stored in D1, and they expire after 30 minutes.
-
-Required local API values are documented in `apps/api/.dev.vars.example`. Copy it to `apps/api/.dev.vars` for local work. Real `.dev.vars` files are ignored by the repository.
-
-Required secret names are:
-
-```text
-ACCESS_TOKEN_SECRET
-REFRESH_TOKEN_SECRET
-RESEND_API_KEY
-PSI_API_KEY
+```ts
+{ success: boolean, message: string, data: unknown | null, error: string | null }
 ```
 
-`WEB_URL` is a non-secret variable. Use `http://localhost:3000` locally, `https://statify-staging.pages.dev` in staging, and `https://statify-app.pages.dev` in production.
+Ingest intentionally returns an empty `202` response after scheduling its D1 write. Browser senders only need acknowledgement and should not wait for rollup work.
 
-### Projects and API keys
+### Feature module rules
 
-Projects belong to a user and contain a normalized domain, optional allowed domains, an active flag, and a public browser API key. Current keys use the `sf_` prefix followed by 64 random hexadecimal characters.
+Routes apply middleware and map HTTP verbs to controllers. Controllers extract request values, call services, and map known domain errors to status codes. Services parse shared Zod schemas and implement business decisions. Repositories contain hand-written prepared SQL against D1.
 
-Project operations:
+When adding a feature, keep SQL out of controllers. Add a migration before relying on a new table. Add a shared contract when the browser SDK and API both need to understand a payload. Add a typed client function and demo data when the feature appears in the web app.
 
-- List projects for the authenticated user.
-- Create a project.
-- Rename a project.
-- Add or replace allowed domains.
-- Rotate the API key.
-- Soft-delete a project.
+## Authentication and authorization
 
-API-key lookups use KV first and D1 as the fallback. Project ownership queries include `owner_id`. Domain allow-list changes and key rotation invalidate the relevant KV entry.
+Signup and login validate with shared schemas. Passwords use PBKDF2-SHA256 with a random 16-byte salt. The stored form is the salt and derived hash. JWTs use `jose` and Web Crypto with HS256:
 
-### Ingest flow
+- access token lifetime: 15 minutes
+- refresh token lifetime: 30 days
+- access and refresh tokens: HttpOnly, SameSite=Lax cookies
+- Secure cookie flag: enabled in production
+- refresh hashes: stored in D1 and rotated on every refresh
 
-`POST /ingest` accepts text or JSON content, although the browser SDK deliberately sends `text/plain` to avoid a CORS preflight.
+`requireAuth` reads the access cookie and verifies it. It adds `req.userId` for controllers. Every dashboard, project, audit, and agent repository query must include the authenticated owner ID. Do not authorize by domain alone.
 
-1. The controller reads the raw body and calls `JSON.parse`.
-2. `@statify/shared` validates the API key, context, and a batch of 1 to 50 events.
-3. The project is loaded from KV or D1.
-4. Browser events require an `Origin` whose hostname matches the project domain or an allowed domain.
-5. Server events use `source: "server"` and skip the browser Origin check. A batch cannot mix browser and server events.
-6. Cloudflare request properties provide country, region, city, and timezone.
-7. `ua-parser-js` provides browser, OS, and device values.
-8. The API does not store the request IP.
-9. `waitUntil` queues the D1 write and the endpoint returns `202` before the write finishes.
+The web client calls `/auth/me` on startup. `apps/web/lib/api.ts` retries a request once after a deduplicated `/auth/refresh`. A failed refresh redirects to `/login`. Pages proxies API calls through the web origin so the cookies stay first-party.
 
-The ingest route allows `POST` and `OPTIONS`, sets `Access-Control-Allow-Origin: *`, and accepts `Content-Type: text/plain` and `application/json`.
+Auth limits are KV counters keyed by SHA-256 of the client address:
 
-### D1 schema and rollups
+- `/auth/login`: 10 requests per minute
+- `/auth/forgot`: 10 requests per minute
 
-Migrations are in `apps/api/migrations`:
+The client address comes from `CF-Connecting-IP`, then the first `X-Forwarded-For` value, then Express `req.ip`.
 
-- `0001_auth.sql`: users, refresh tokens, reset tokens.
-- `0002_projects.sql`: projects, API keys, allowed domains, ownership indexes.
-- `0003_events.sql`: raw event rows and enrichment columns, including agent metadata and source.
-- `0004_rollups.sql`: daily stats, pages, referrers, countries, regions, cities, browsers, OS, devices, agents, visitors, and sessions.
-- `0005_audits.sql`: audit scores, field metrics, and raw audit JSON.
-
-`packages/shared/src/rollups.ts` owns the rollup table and column names. The ingest rollup writer uses these constants instead of duplicating column strings.
-
-Each incoming event is inserted into `events`. `page_view` events also create rollup statements. Raw event inserts and rollup statements go through one D1 `batch`, so a batch succeeds or fails together. Visitor and session dedupe tables support daily unique counts. If the client timestamp is more than 24 hours away from receipt time, rollups use the receipt date.
-
-Rollup failures run inside `waitUntil`, are caught, and are logged with the project ID and batch size. The free D1 write budget is the main scale limit. A page view currently costs roughly 12 D1 rows when all rollups are written.
-
-## SDK behavior
+## Browser and server SDK
 
 ### Browser SDK
 
-The browser source is under `packages/sdk/src/browser` and is built by tsup as a minified IIFE. The build writes `packages/sdk/dist/statify.global.js` and copies it to `apps/web/public/statify.js`.
+The browser entry starts only when it finds a script tag containing `statify.js`. It reads `data-api-key`, batch size, and batch timeout from that tag. The default endpoint is the production API Worker ingest URL.
 
-The script reads its own tag and supports:
+Identity behavior:
 
-- `data-api-key`
-- `data-endpoint`
-- `data-batch-size`
-- `data-batch-timeout`
+- visitor ID is stored in localStorage under `orb_id` and does not expire
+- session ID is stored in sessionStorage and rolls after 30 minutes of inactivity
+- both IDs combine a base-36 timestamp and random text
 
-The default endpoint is the production API ingest URL. The visitor ID lives in `localStorage` under `sf_vid`. The session ID lives in `sessionStorage`, rolls over after 30 minutes of inactivity, and uses `crypto.randomUUID()` when available.
+Tracking behavior:
 
-The tracker sends a `page_view` on load, on `popstate`, and after patched `pushState` and `replaceState` calls. A capturing document listener records clicks on the closest link or button. It records the tag, ID, class, trimmed text, and href.
+- sends a `page_view` on startup
+- emits page views after `popstate`, `pushState`, and `replaceState`
+- records clicks on the nearest `a` or `button`
+- sends `automation` hints for webdriver, headless Chrome, and missing pointer activity
+- sends LCP, INP, and CLS through `web-vitals`
 
-Events flush when the queue reaches its configured size or its timeout. `sendBeacon` handles `visibilitychange` to hidden and `pagehide`; normal flushes use `fetch` with `keepalive` and `Content-Type: text/plain`.
+Batch behavior:
 
-The browser context includes automation hints: `navigator.webdriver`, a HeadlessChrome user-agent check, missing `window.chrome` on a Chrome user agent, and whether the page received pointer movement before the first click. The SDK currently ignores `navigator.doNotTrack`; this choice is documented in the README and should remain explicit in product copy.
+- flushes at 10 events or after five seconds
+- flushes on `visibilitychange` and `pagehide`
+- prefers `navigator.sendBeacon` during page teardown
+- uses `text/plain` to keep browser ingest a CORS simple request with no preflight
+
+Vital events are `custom` events with `vitalName`, `vitalValue`, and `vitalRating` properties. The API keeps their aggregate in `daily_vitals`; it does not need to make the raw event schema wider.
 
 ### Server SDK
 
-Server middleware is under `packages/sdk/src/server`.
+`@statify/sdk/server/express` attaches to the response `finish` event. `@statify/sdk/server/next` schedules work with `NextFetchEvent.waitUntil`. Both only track HTML GET and HEAD requests, skip static asset-looking paths, and hash the IP, user agent, and UTC date into a server visitor ID. The raw IP never enters the payload.
 
-- Express: `@statify/sdk/server/express`
-- Next middleware helper: `@statify/sdk/server/next`
+Server events use `source: "server"`. They may skip browser Origin validation, so their API key must remain server-side.
 
-The middleware only tracks GET and HEAD requests that accept HTML and whose path does not look like a static asset. It creates a `server_request` event with the path, referrer, user agent, Accept header, and Web Bot Auth headers.
+## Ingest pipeline
 
-The server visitor ID is a SHA-256 digest of the IP, user agent, and current UTC date. The raw IP never leaves the server middleware. Delivery is fire-and-forget with a two-second abort timeout. Express sends after `res.on("finish")`; Next schedules delivery with `event.waitUntil`.
+`apps/api/src/features/ingest/ingest.service.ts` performs the following steps:
 
-Server API keys must stay private. The browser key is intentionally public and can be copied by a site visitor, but a server key must not be embedded in client code.
+1. Parses JSON and validates the shared ingest schema.
+2. Rejects mixed browser/server batches.
+3. Applies the 600 requests per API key per minute KV limit.
+4. Looks up the active project in KV, then D1, and caches the result for one hour.
+5. Validates browser `Origin` against the project domain and allowed domains.
+6. Reads `request.cf` for country, region, city, and timezone.
+7. Parses browser user-agent data with `ua-parser-js`.
+8. Verifies Web Bot Auth when signature headers exist.
+9. Classifies the request as human, crawler, agent, or automation.
+10. Converts events to the internal enriched event shape.
+11. Reserves an estimated D1 write budget in KV.
+12. Uses `waitUntil` to write raw events and daily rollups, logging failures instead of hiding them.
 
-### Install snippets
+The D1 budget counter uses a UTC date key and estimates 12 writes per incoming event. The 90,000 threshold leaves space below the free-tier 100,000 daily write limit. When a reservation crosses the threshold, raw `events` rows are skipped but rollups continue. This means filtered dashboards can lose detail after the protection activates, while unfiltered rollup dashboards continue to work.
 
-`packages/shared/src/snippets.ts` exports eight snippets through `installSnippets`:
+KV increments are best-effort counters, not a globally atomic distributed limiter. If traffic becomes large enough for strict enforcement, replace this with a stronger Cloudflare coordination primitive.
 
-1. HTML
-2. Next.js
-3. React
-4. SvelteKit
-5. Nuxt
-6. Astro
-7. Express middleware
-8. Next middleware
+## Agent detection
 
-They use the production script URL and `YOUR_API_KEY` as placeholders. DEV-24 should replace the placeholder with the selected project's actual key before displaying or copying the snippet.
+`packages/shared/src/agents.ts` owns the classification logic and `agents/list.json` contains declared user-agent tokens. Verified Web Bot Auth takes precedence. The fallback order is:
 
-## Web UI foundation
+1. verified signature, category agent, confidence 1.0
+2. declared token, vendor and harness, confidence 0.9
+3. browser automation signals, confidence 0.6
+4. human, confidence 1.0
 
-The starter page in `apps/web/app/page.tsx` now renders a shadcn `Card` with a `Button`, using the shared Statify theme. The generated components are under `apps/web/components/ui`:
+`packages/shared/src/web-bot-auth.ts` parses HTTP Message Signatures, fetches and caches the vendor key directory for 24 hours, and verifies Ed25519 signatures. It never treats a failed signature as verified.
 
-- `button.tsx`
-- `card.tsx`
-- `dialog.tsx`
-- `tabs.tsx`
-- `input.tsx`
-- `sonner.tsx`
-- `chart.tsx`
+Agent fields are stored on events and rolled into `daily_agents`. The agents dashboard reads these rollups through owner-scoped queries.
 
-The components use `radix-ui`, `lucide-react`, `recharts`, `sonner`, `next-themes`, `class-variance-authority`, `countries-list`, `shiki`, and `@faker-js/faker`. The dashboard overview, breakdown cards, settings, and demo mode are implemented through DEV-25. The full landing page still belongs to a later ticket.
+## Database and rollups
 
-The static Pages proxy has been verified locally and on staging. `/api/health` returns the API envelope through `apps/web/functions/api/[[path]].ts`, and `/statify.js` returns `200` with `Cache-Control: public, max-age=3600`.
+Migrations apply in this order:
 
-## Dashboard overview
-
-DEV-22 added the first dashboard view in `apps/web/components/dashboard/dashboard-client.tsx`. The page is still statically exported for Cloudflare Pages, so the client fetches projects and dashboard data after the auth guard confirms the session.
-
-- `apps/web/lib/projects.ts` wraps the project list and create endpoints.
-- `apps/web/lib/dashboard.ts` defines the dashboard response contract and fetches `GET /dashboard/:projectId?range=...`.
-- `project` and `range` URL search parameters are the source of truth. Project and range changes use history entries, so browser back and forward restore the previous view.
-- The project switcher lists projects and contains the new-project form. Creating a project selects it immediately.
-- The range menu supports every dashboard API range slug.
-- Summary cards show visitors, page views, and sessions with compact number formatting.
-- The visitors chart uses the existing shadcn `ChartContainer` with a Recharts `AreaChart`, themed through the Statify CSS variables.
-- Loading uses `components/ui/skeleton.tsx`. API failures show a retry action. Projects with no page views show the install snippet with the selected public API key.
-
-The page is wrapped in `Suspense` because it reads `useSearchParams` during the static build.
-
-DEV-23 extends the same client with `components/dashboard/breakdown-card.tsx`:
-
-- Pages, referrers, locations, and devices render in reusable cards with scrollable lists and a bottom fade.
-- Page, location, and device cards have view toggles. Locations use `countries-list` names and FlagCDN images for country codes. Referrer `unknown` displays as `(Direct)`. Device rows show percentage bars.
-- Row clicks write dashboard filters such as `page`, `referrer`, `country`, `browser`, `os`, or `device` into the URL. Filter chips remove individual filters. The dashboard API then refetches all cards and the chart using the raw-event path.
-
-## Project settings
-
-DEV-24 adds the protected static Pages route `/settings` under `apps/web/app/(app)/settings`.
-
-- `components/settings/settings-client.tsx` loads the selected project from the `project` search parameter and falls back to the first project.
-- General supports rename, read-only primary domain, API-key copy, and a confirmation dialog before key rotation.
-- Domains validates lowercase DNS names, deduplicates them, and persists add/remove changes through `PATCH /projects/:id`.
-- Install uses `packages/shared/src/snippets.ts`, fills the real public key, highlights client-side with Shiki, and copies the selected snippet.
-- Danger requires typing the exact primary domain before calling the soft-delete endpoint.
-- `apps/web/lib/api.ts` now includes `apiDelete`; `lib/projects.ts` wraps update, rotate-key, and delete calls.
-
-The dashboard header links to settings for the selected project. DEV-25 is the next ticket and should add seeded demo mode without changing the settings or dashboard URL contracts.
-
-## Demo mode
-
-DEV-25 adds a public `/demo` route. It wraps the shared dashboard client in `components/dashboard/demo-context.tsx`, so it never runs the auth guard or calls the API.
-
-- `lib/demo.ts` seeds Faker with a fixed value and creates 30 days of visitors, page views, pages, referrers, countries, regions, cities, browsers, operating systems, devices, agent visits, and audit history.
-- `getDemoDashboard` applies the dashboard range, view selectors, and URL filters locally. Filter clicks still update the URL and refresh every card and the chart.
-- The demo project is `Acme Docs` on `acme.example` with a clearly fake public key.
-- The project menu remains visible, but creating a project shows `Not available in demo` and does not call the API. Settings and sign-out controls are replaced by an `Exit demo` link.
-- `demoAuditHistory` and `demoAgentVisits` are exported for the future agent and audit sections.
-
-The landing page now links to `/demo` beside the signup CTA. Keep this route unauthenticated and keep future demo mutations behind the same toast behavior.
-
-## Agent detection and Web Bot Auth
-
-DEV-26 adds `packages/shared/src/agents.ts` and `packages/shared/src/agents/list.json`. `classify` checks verified Web Bot Auth first, then the declared UA list, then automation markers, and finally returns `human`. It returns category, vendor, harness, optional explicit `X-Agent-Model`, confidence, and a signature-failure flag. It never infers a model from a user agent. The shared test table covers 30 user-agent cases.
-
-DEV-27 adds `packages/shared/src/web-bot-auth.ts`. It parses `Signature`, `Signature-Input`, and `Signature-Agent`, fetches and KV-caches the vendor directory for 24 hours, rebuilds the RFC 9421 signature base, and verifies Ed25519 with Web Crypto. Failed signatures fall back to UA classification and set `signatureFailed` in the classifier result. The server SDK forwards the signature headers and original request method/URL to ingest.
-
-Ingest now classifies every event and overwrites client-supplied agent fields. It stores `agent_category`, `agent_vendor`, `agent_harness`, and one-decimal `agent_confidence` in `events`. The agent rollup writes every classified event, including server requests, to `daily_agents`; page-view rollups continue to write their existing dimension tables.
-
-## Agent analytics
-
-DEV-28 adds `GET /dashboard/:projectId/agents?range=...&vendor=...` under the existing owner-checked dashboard router. `apps/api/src/features/agents` returns agent visits by day and category, vendor confidence, harness, top paths, and human-versus-agent totals. The data comes from `daily_agents`, with paths read from classified events.
-
-The UI is at `/dashboard/agents`, with a matching unauthenticated `/demo/agents` route. It has a stacked category area chart, range/vendor controls, summary cards, and vendor, harness, and path lists. Demo agent data comes from the fixed-seed data in `lib/demo.ts`. The main dashboard header links to the agents page.
-
-## Dashboard API
-
-DEV-21 added the modular dashboard feature under `apps/api/src/features/dashboard`:
-
-- `dashboard.routes.ts` mounts authenticated `GET /dashboard/:projectId`.
-- `dashboard.controller.ts` parses the request and returns the standard API envelope.
-- `dashboard.service.ts` validates query parameters, resolves date ranges, checks the owner, and selects the rollup or raw-event query path.
-- `dashboard.repository.ts` contains the six parallel D1 query groups.
-
-The project lookup is always `WHERE id = ? AND owner_id = ? AND is_active = 1`. A project from another user returns `404 Project not found`, so the endpoint never authorizes by domain alone.
-
-Supported query parameters are `range` (`today`, `yesterday`, `7d`, `30d`, `this_month`, `12m`, `all`), `pageView` (`top` or `entry`), `locationView` (`country`, `region`, or `city`), `deviceView` (`browser`, `os`, or `device`), and filters for `page`, `referrer`, `country`, `browser`, `os`, and `device`.
-
-Without filters, the repository reads `daily_stats`, `daily_pages`, `daily_referrers`, the selected location rollup, and the selected device rollup. With any filter, it runs equivalent aggregate queries against `events`. The response includes summary counts, a daily chart, pages, referrers, locations, devices, the resolved range, selected views, and a `filtered` flag. Breakdown lists are capped at 50 rows. The chart range expands short ranges to at least three days.
-
-## Web authentication
-
-DEV-20 added the auth pages and client auth flow:
-
-- `/login` signs in an existing user.
-- `/signup` creates an account and signs it in.
-- `/forgot` requests a password reset email.
-- `/reset?token=<token>` accepts a reset token and new password.
-- `/dashboard` is the first protected page and includes sign out.
-
-The frontend uses `apps/web/lib/api.ts` for all API calls. It prefixes paths with `/api`, includes credentials so the Pages proxy forwards HttpOnly cookies, parses the API response envelope, and returns `{ data, error, status }`. Network failures become an error result instead of a thrown exception.
-
-When a non-auth request returns `401`, the client starts one shared `/auth/refresh` request. Concurrent callers wait for that same promise. A successful refresh retries the original request once. If refresh fails, the browser navigates to `/login`. Auth endpoints never refresh themselves, which avoids a refresh loop.
-
-The static Pages build cannot generate arbitrary `/reset/[token]` paths. The API reset email therefore links to `/reset?token=<token>`, and the static reset page reads the token with `useSearchParams` inside a Suspense boundary. The API still receives `{ token, password }` at `POST /auth/reset`.
-
-Because Pages serves a static export, route guards run in client components rather than server layouts. `GuestGuard` checks `/auth/me` and redirects authenticated users to `/dashboard`. `AuthGuard` checks `/auth/me` and redirects unauthenticated users to `/login`. The API remains the source of truth because it validates the HttpOnly access cookie.
-
-`Providers` mounts the shadcn Sonner toaster. Auth forms use it for API errors and success messages. The forms use the shared theme and shadcn `Input`, `Button`, and `Card` components.
-
-## Local development
-
-From the repository root:
-
-```sh
-bun install
-cp apps/api/.dev.vars.example apps/api/.dev.vars
-cp apps/web/.env.example apps/web/.env.local
-bun run db:fresh
-bun run dev:api
-bun run dev:web
+```text
+0001_auth.sql       users, refresh_tokens, reset_tokens
+0002_projects.sql   projects and allowed_domains
+0003_events.sql     denormalised event rows and indexes
+0004_rollups.sql    daily analytics and agent dimensions
+0005_audits.sql     PSI and agentic audit history
+0006_vitals.sql     daily visitor Web Vital aggregates
 ```
 
-`db:fresh` removes local Wrangler D1 state, applies all migrations, and runs `apps/api/seed.sql`. The seed creates a local user and project for API testing. The local API uses the staging D1/KV shape from the top-level API Wrangler configuration, but local values and state remain local.
+`events` contains visitor/session IDs, event type and timestamps, page properties, user-agent enrichment, Cloudflare location, agent classification, and event source. It is retained for 90 days.
 
-Useful checks:
+The main rollup tables are `daily_stats`, `daily_pages`, `daily_referrers`, `daily_countries`, `daily_regions`, `daily_cities`, `daily_browsers`, `daily_os`, `daily_devices`, `daily_agents`, `daily_visitors`, `daily_sessions`, and `daily_vitals`.
 
-```sh
-bun run typecheck
-bun run build
-bun run build --filter=web
-bun run lint --filter=web
-bun run db:fresh
+Page-view rollups use `INSERT ... ON CONFLICT DO UPDATE`. Visitor and session dimension rows use `INSERT OR IGNORE`, followed by `changes()` updates to daily counts. The rollup names for the original analytics tables live in `packages/shared/src/rollups.ts`; vitals use their own fixed schema because they store numeric totals.
+
+The dashboard uses rollups when there are no filters. When a page, referrer, country, browser, OS, or device filter exists, it queries raw events so the filter is exact. Lists are capped at 50 rows.
+
+## Audits and Web Vitals
+
+The audit feature stores one row per run in `audits`. PSI provides mobile Lighthouse performance, accessibility, best-practices, SEO, and CrUX values. The agentic audit fetches robots.txt, llms.txt, sitemap.xml, the homepage, and the Web Bot Auth directory, then scores eight checks from 0 to 100. Raw PSI and checklist JSON remain in `raw_json`.
+
+`GET /audits/:projectId?limit=30` returns newest audits plus a 30-day field-vital aggregate. `POST /audits/:projectId/run` is owner-scoped and rate-limited for ten minutes. `/dashboard/audits` renders gauges, history, field visitor means, CrUX values, PSI lab values, and checklist notes. `/demo/audits` uses deterministic seed data and makes mutations unavailable.
+
+The current visitor field data shows the mean, because DEV-33 stores `count` and `total`. The `p75_sample` column exists for a future bounded sample implementation but currently receives the latest value. Do not present this mean as a p75.
+
+## Web application architecture
+
+`apps/web` uses Next.js 16 static export, React 19, Tailwind 4, shadcn-style primitives, Recharts, `next-themes`, and Sonner. Pages hosting serves the `out` directory.
+
+Route groups:
+
+- `(auth)`: guest-only login, signup, forgot-password, and reset pages
+- `(app)`: authenticated dashboard, agents, audits, and settings pages
+- `demo`: public deterministic dashboard, agents, and audits pages
+- root `/`: public landing page
+
+`AuthGuard` performs the client-side authenticated check for app routes. `GuestGuard` prevents an authenticated user from remaining on guest routes. `components/ui` contains the shared button, card, input, tabs, chart, dialog, skeleton, and toaster primitives.
+
+State is local to feature clients. `dashboard-client` keeps query controls in the URL and fetches whenever the selected project or query changes. `agents-client` and `audits-client` follow the same project-loading pattern. `demo-context` switches API calls to seeded local data and shows a not-available toast for mutations.
+
+The landing scene is `components/landing/scene.tsx`. It is a self-contained Canvas 2D implementation based on the supplied Gateway Flow source. `scene-loader.tsx` imports it through `next/dynamic` with SSR disabled. It has a gateway-flow hero variant, a constellation background variant, resize handling, theme-aware colors, cleanup on unmount, and reduced-motion handling.
+
+The theme provider defaults to dark and uses `attribute="class"`. `ThemeToggle` switches between explicit dark and light themes. Do not change it back to system default without also deciding how the canvas scenes and screenshots should behave.
+
+## Deployment and environments
+
+`apps/api/wrangler.jsonc` contains local bindings plus `staging` and `prod` environments. Each environment has its own D1 database, KV namespace, Worker name, `WEB_URL`, and cron triggers.
+
+The cron triggers are `0 3 * * *` for audits and `0 4 * * SUN` for weekly retention. Cloudflare uses `SUN` for Sunday in this expression. `scheduled()` branches on `controller.cron`, and both jobs use `ctx.waitUntil` so the scheduled event stays alive until its D1 work settles.
+
+Pages projects:
+
+- `statify-staging`, deployed from `staging` to `https://statify-staging.pages.dev`
+- `statify-app`, deployed from `main` to `https://statify-app.pages.dev`
+
+`.github/workflows/staging.yml` and `prod.yml` install Bun 1.4.0, run typecheck, apply remote D1 migrations, deploy the API Worker, build the web export, and deploy Pages. API secrets are configured in the matching Cloudflare Worker environment. GitHub Actions needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; web builds need `API_URL` and `NEXT_PUBLIC_WEB_URL` environment variables.
+
+Local values:
+
+```text
+apps/api/.dev.vars
+  ACCESS_TOKEN_SECRET
+  REFRESH_TOKEN_SECRET
+  RESEND_API_KEY
+  PSI_API_KEY
+  WEB_URL=http://localhost:3000
+
+apps/web/.env.local
+  API_URL=<staging API URL>
+  NEXT_PUBLIC_WEB_URL=http://localhost:3000
 ```
 
-To preview the Pages output, build the web app and run:
+The files are ignored. Only `.example` files are tracked.
 
-```sh
-cd apps/web
-bunx wrangler pages dev out --local --port 8788
-```
+## Safe change checklist
 
-Then check `/`, `/statify.js`, and `/api/health`. Use `curl --compressed` for the API response because the upstream Worker may return Brotli content.
+Before editing:
 
-The API can also be run with `bunx wrangler dev --local` from `apps/api`. When testing browser ingest manually, include a matching `Origin`. When testing server ingest, send `source: "server"` and keep the API key out of browser code.
+1. Check the relevant Linear ticket and current branch status.
+2. Inspect the shared schema and migration before changing event fields.
+3. Confirm whether the feature affects browser SDK, server SDK, API, D1, KV, Pages, or deployment config.
 
-## Completed work and next order
+After editing:
 
-### Completed
+1. Run `bun run typecheck`.
+2. Run `bun run lint` and `bun run build`.
+3. Run `bun run db:fresh` when migrations or rollups changed.
+4. Run `git diff --check`.
+5. Scan tracked files and history for accidental secrets.
+6. Use a focused commit message and push the intended branch.
 
-- DEV-5: Express on Workers spike completed. The API keeps the Express plus `httpServerHandler` approach.
-- DEV-6: Bun/Turbo monorepo, workspaces, shared contracts, root scripts, and ignore rules.
-- DEV-7: Staging and production D1, KV, API Worker environments, bindings, and secrets setup.
-- DEV-8: GitHub Actions for staging and production, Pages deployment, typecheck gate, and branch protection. The Linear description now correctly says Pages for the frontend.
-- DEV-9: Five D1 migrations, rollup constants, seed data, and `db:fresh`.
-- DEV-10: Signup, login, PBKDF2, JWT cookies, refresh token storage, and password reset email flow.
-- DEV-11: Refresh rotation, logout, `/auth/me`, and modular auth middleware.
-- DEV-12: Forgot/reset password through Resend, environment-specific reset links, one-use reset tokens, and refresh-session invalidation.
-- DEV-13: Project CRUD, API key rotation, allowed domains, ownership checks, and KV cache.
-- DEV-14: Modular ingest validation, API-key lookup, Origin validation, enrichment, and 202 response.
-- DEV-15: D1 event writes, daily rollups, dedupe tables, timestamp drift handling, and visible `waitUntil` errors.
-- DEV-16: Browser SDK with IDs, SPA navigation tracking, clicks, batching, beacon delivery, and automation hints.
-- DEV-17: Express and Next server SDK middleware with server events and hashed visitor IDs.
-- DEV-18: Pages-hosted `statify.js`, cache headers, shared install snippets, and SDK-to-web Turbo build ordering.
-- DEV-19: Next.js static Pages export, Tailwind CSS 4, the requested shadcn OKLCH theme, seven shadcn UI components, the `@/*` alias, PostCSS setup, the starter card/button page, and staging verification through the Pages proxy.
-- DEV-20: login, signup, forgot-password, query-based reset, client route guards, HttpOnly-cookie API calls, deduplicated refresh-on-401, logout, and Sonner error handling.
-- DEV-21: owner-scoped dashboard API, validated ranges and selectors, rollup reads without filters, raw event reads with filters, six parallel query groups, and 50-row list caps.
-- DEV-22: dashboard shell, URL-backed project and range controls, project creation, summary cards, visitors area chart, loading skeletons, retry state, and zero-event install state.
-- DEV-23: reusable pages, referrers, locations, and device breakdown cards, URL filters, filter chips, country names and flags, and device percentage bars.
-- DEV-24: settings route, project rename, API-key copy and rotation, allowed-domain management, highlighted install snippets, and typed-domain deletion.
-- DEV-25: public demo route, demo context, fixed-seed Faker dashboard data, local demo filters, future agent and audit seed exports, mutation toast, and landing-page demo link.
-- DEV-26: shared agent UA list, four-way classifier, explicit model handling, ingest classification, and 30-case UA tests.
-- DEV-27: shared RFC 9421 Web Bot Auth parser and Ed25519 verifier, 24-hour KV directory cache, SDK header forwarding, and tampered-signature tests.
-- DEV-28: classified-event agent rollups, owner-scoped agents API, agent dashboard and demo agents page, stacked category chart, vendor confidence, harness/path lists, and human-versus-agent ratio.
-- DEV-29: modular audits API, PageSpeed Insights mobile audits, Lighthouse category and CrUX field-data storage, authenticated manual runs with a ten-minute KV cooldown, and a 03:00 UTC Worker cron capped at 200 active projects with a one-second project gap.
-- DEV-30: fetch-only agentic-browsing audit checks for robots.txt, llms.txt, sitemap references, structured data, semantic HTML, no-JS content, Web Bot Auth hints, and metadata. The weighted checklist produces a 0-100 score and is stored with the raw audit JSON; network checks use a ten-second timeout and Statify audit user agent.
-- DEV-31: owner-scoped audit history endpoint, score gauges, history chart, Core Web Vitals status cards, agentic checklist, manual Run now control, project selection, and demo audits at `/dashboard/audits` and `/demo/audits`.
-- DEV-32: dark-by-default theme with a light-mode toggle, the Statify landing page, gateway-flow hero canvas, constellation background canvas, Orbit-style feature/how-it-works/install/CTA sections, framework snippet picker, demo and sign-in links, GitHub footer, and lazy client-only scene loading.
+Security checks that must remain true:
 
-### Next implementation order
+- every dashboard, audit, agent, and project query filters by owner ID
+- access cookie lifetime equals access JWT lifetime
+- refresh rotation deletes the previous hash
+- browser API keys are treated as public and cannot be used as secrets
+- auth and ingest limits stay in KV
+- raw event retention stays at 90 days
+- PSI, Resend, JWT, and Cloudflare credentials never enter source control
 
-The remaining plan is ordered around dependencies:
+## Current handoff status
 
-1. DEV-33: optional real-user Web Vitals.
-2. DEV-34: rate limits, retention, final security review, documentation, and production release.
-
-## Known gaps to keep in mind
-
-- The dashboard API, overview, breakdown cards, settings, demo mode, agent views, and audit views are implemented. The full landing page remains future work.
-- The audit runner requires `PSI_API_KEY` in the API environment. The production and staging secrets must be configured separately; the key is intentionally absent from Wrangler vars and source control.
-- PSI and agentic checks are currently run in the same scheduled/manual audit request. A failed project is logged and does not prevent later projects from running.
-- Field LCP/INP/CLS values come from PSI CrUX loading experience when Google has data for the audited origin; they may be null for low-traffic sites.
-- The landing scenes are self-contained Canvas 2D components based on the supplied Gateway Flow source. The supplied text bundle references missing `@designcodeio/threeui` raw shader files, so the app does not depend on that unavailable package.
-- DEV-17 records the planned browser/server page-view deduplication. That logic is not implemented yet; the dashboard currently counts browser page-view events and future server-event integration must add the deduplication rule.
-- Browser API keys are public by design. Origin validation limits accidental cross-site use but cannot stop a client from replaying a public key.
-- `apps/web/public/statify.js` is a generated copy of the SDK bundle. The root Turbo web build regenerates it before the Pages build.
-- `apps/web/components/ui` contains generated shadcn code. Keep the theme variables in `apps/web/app/globals.css` as the source of truth when adding more components.
-- Do not commit `.dev.vars`, `.env.local`, API tokens, JWT secrets, Resend keys, PSI keys, or Cloudflare API tokens.
-- The API currently uses its own `sf_` key format. Do not rename it to the older Orbit `orb_` format without updating the project service, snippets, and tests together.
-
-## Handoff checklist
-
-Before starting the next ticket:
-
-1. Confirm `git status` is clean and start from `staging`.
-2. Read the Linear ticket and its latest comments.
-3. Check whether the ticket changes the API Worker, the Pages site, or a shared package.
-4. Preserve the Pages deployment commands and URLs above.
-5. Run `bun run typecheck` and the narrowest relevant build or local test before committing.
-6. Use a focused commit message, push `staging`, and update the Linear issue with the commit and verification results.
+DEV-5 through DEV-34 are implemented in Linear. The latest work added visitor Web Vitals, launch rate limits, the D1 budget guard, weekly retention, the architecture README, and this context document. Before calling the product fully launched, verify production secrets, run a real production signup and dashboard check, install the production snippet on the production landing page, and confirm the first Web Vital rows appear in the audits view.

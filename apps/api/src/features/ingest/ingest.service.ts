@@ -3,18 +3,24 @@ import { waitUntil } from "cloudflare:workers";
 import { UAParser } from "ua-parser-js";
 import { runtimeEnv } from "../../config/env.js";
 import { randomId } from "../../lib/crypto.js";
+import { enforceRateLimit, RateLimitError, reserveD1WriteBudget } from "../../lib/rate-limit.js";
 import { IngestRepository, type IngestProject } from "./ingest.repository.js";
 import { writeEventBatch, type IngestContext, type QueuedEvent } from "./rollup.service.js";
 
 export class IngestValidationError extends Error {}
 export class IngestUnauthorizedError extends Error {}
 export class IngestOriginError extends Error {}
+export { RateLimitError as IngestRateLimitError };
 
 type IngestRequest = { cf?: Record<string, string | undefined> };
 type ForwardedHeaders = Record<string, string | undefined>;
 
 function optionalString(value: unknown) {
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function optionalNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function getOriginHostname(origin: string | undefined) {
@@ -74,6 +80,9 @@ function enrichEvent(event: Event, context: IngestContext, receivedAt: number, c
     agentHarness: classification.harness ?? null,
     agentConfidence: classification.confidence.toFixed(1),
     source: event.source ?? "browser",
+    vitalName: optionalString(properties.vitalName),
+    vitalValue: optionalNumber(properties.vitalValue),
+    vitalRating: optionalString(properties.vitalRating),
   };
 }
 
@@ -87,6 +96,7 @@ export async function queueIngest(rawBody: string, origin: string | undefined, u
 
   const parsed = ingestPayloadSchema.safeParse(input);
   if (!parsed.success) throw new IngestValidationError(parsed.error.issues[0]?.message ?? "Invalid ingest payload");
+  await enforceRateLimit(runtimeEnv.CACHE, `rate:ingest:${parsed.data.apiKey}:${Math.floor(Date.now() / 60_000)}`, 600, 120);
 
   const serverEventCount = parsed.data.events.filter((event) => event.source === "server").length;
   if (serverEventCount > 0 && serverEventCount !== parsed.data.events.length) {
@@ -129,10 +139,11 @@ export async function queueIngest(rawBody: string, origin: string | undefined, u
   const signaturePresent = Boolean(headers.signature || headers["signature-input"] || headers["signature-agent"]);
   const classification = classify({ userAgent, headers, automation: parsed.data.context.automation, verified: verification.verified ? { vendor: verification.vendor ?? "unknown", model: verification.model } : undefined, signatureFailed: signaturePresent && !verification.verified });
   const events = parsed.data.events.map((event) => enrichEvent(event, context, receivedAt, classification));
+  const budget = await reserveD1WriteBudget(runtimeEnv.CACHE, events.length);
 
   waitUntil(
-    writeEventBatch(runtimeEnv.DB, project.projectId, events).catch((error: unknown) => {
-      console.error("ingest batch failed", { projectId: project.projectId, batchSize: events.length, error });
+    writeEventBatch(runtimeEnv.DB, project.projectId, events, budget.writeRawEvents).catch((error: unknown) => {
+      console.error("ingest batch failed", { projectId: project.projectId, batchSize: events.length, writeRawEvents: budget.writeRawEvents, error });
     }),
   );
 }

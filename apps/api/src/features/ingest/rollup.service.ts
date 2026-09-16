@@ -46,6 +46,9 @@ export type QueuedEvent = {
   agentHarness: string | null;
   agentConfidence: string | null;
   source: "browser" | "server";
+  vitalName: string | null;
+  vitalValue: number | null;
+  vitalRating: string | null;
 };
 
 function sqlValue(value: string | null) {
@@ -123,7 +126,22 @@ function agentRollup(db: D1Database, projectId: string, event: QueuedEvent): D1P
   return [upsert(`INSERT INTO ${ROLLUP_TABLES.agents} (${ROLLUP_COLUMNS.agents.projectId}, ${ROLLUP_COLUMNS.agents.date}, ${ROLLUP_COLUMNS.agents.category}, ${ROLLUP_COLUMNS.agents.vendor}, ${ROLLUP_COLUMNS.agents.harness}, ${ROLLUP_COLUMNS.agents.confidence}, ${ROLLUP_COLUMNS.agents.visitors}) VALUES (?, ?, ?, ?, ?, ?, 1) ON CONFLICT (${ROLLUP_COLUMNS.agents.projectId}, ${ROLLUP_COLUMNS.agents.date}, ${ROLLUP_COLUMNS.agents.category}, ${ROLLUP_COLUMNS.agents.vendor}, ${ROLLUP_COLUMNS.agents.harness}, ${ROLLUP_COLUMNS.agents.confidence}) DO UPDATE SET ${ROLLUP_COLUMNS.agents.visitors} = ${ROLLUP_COLUMNS.agents.visitors} + 1`, db, [projectId, date, event.agentCategory, sqlValue(event.agentVendor), sqlValue(event.agentHarness), sqlValue(event.agentConfidence)])];
 }
 
-export async function writeEventBatch(db: D1Database, projectId: string, events: QueuedEvent[]) {
-  const statements = events.flatMap((event) => [eventStatement(db, projectId, event), ...(event.type === "page_view" ? pageViewRollups(db, projectId, event) : []), ...agentRollup(db, projectId, event)]);
+function vitalRollup(db: D1Database, projectId: string, event: QueuedEvent): D1PreparedStatement[] {
+  if (!event.vitalName || event.vitalValue === null || !["LCP", "INP", "CLS"].includes(event.vitalName)) return [];
+  const date = dateFor(event);
+  return [upsert(
+    "INSERT INTO daily_vitals (project_id, date, name, count, total, p75_sample) VALUES (?, ?, ?, 1, ?, ?) ON CONFLICT (project_id, date, name) DO UPDATE SET count = count + 1, total = total + ?, p75_sample = ?",
+    db,
+    [projectId, date, event.vitalName, event.vitalValue, JSON.stringify([event.vitalValue]), event.vitalValue, JSON.stringify([event.vitalValue])],
+  )];
+}
+
+export async function writeEventBatch(db: D1Database, projectId: string, events: QueuedEvent[], writeRawEvents = true) {
+  const statements = events.flatMap((event) => [
+    ...(writeRawEvents ? [eventStatement(db, projectId, event)] : []),
+    ...(event.type === "page_view" ? pageViewRollups(db, projectId, event) : []),
+    ...agentRollup(db, projectId, event),
+    ...vitalRollup(db, projectId, event),
+  ]);
   await db.batch(statements);
 }

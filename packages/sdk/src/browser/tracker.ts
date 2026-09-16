@@ -1,6 +1,7 @@
 import type { Event, IngestPayload } from "@statify/shared";
 import { sessionId, visitorId } from "./identity.js";
 import type { EventQueue } from "./batcher.js";
+import { onCLS, onINP, onLCP } from "web-vitals";
 
 function text(value: string | null | undefined) {
   return value?.trim().slice(0, 100) || undefined;
@@ -67,4 +68,19 @@ export function createTracker(queue: EventQueue) {
     context,
     flush: queue.flush,
   };
+}
+
+export function trackWebVitals(queue: EventQueue) {
+  const addVital = (metric: { name: string; value: number; rating: string }) => {
+    queue.add({
+      type: "custom",
+      visitorId: visitorId(),
+      sessionId: sessionId(),
+      timestamp: Date.now(),
+      properties: { vitalName: metric.name, vitalValue: metric.value, vitalRating: metric.rating },
+    });
+  };
+  onLCP(addVital);
+  onINP(addVital);
+  onCLS(addVital);
 }

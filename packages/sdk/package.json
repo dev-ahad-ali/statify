@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@statify/shared": "*"
+    "@statify/shared": "*",
+    "web-vitals": "^6.2.2"
   },
   "peerDependencies": {
     "express": ">=4",

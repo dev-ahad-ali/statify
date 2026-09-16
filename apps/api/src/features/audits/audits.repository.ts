@@ -17,6 +17,7 @@ export type AuditRow = {
 };
 
 export type AuditInsert = Omit<AuditRow, "raw_json"> & { raw_json: string };
+export type VitalRow = { name: "LCP" | "INP" | "CLS"; count: number; total: number };
 
 export class AuditsRepository {
   constructor(private readonly db: D1Database) {}
@@ -39,5 +40,11 @@ export class AuditsRepository {
     return this.db.prepare(
       "SELECT audits.* FROM audits INNER JOIN projects ON projects.id = audits.project_id WHERE audits.project_id = ? AND projects.owner_id = ? AND projects.is_active = 1 ORDER BY audits.ran_at DESC LIMIT ?",
     ).bind(projectId, ownerId, limit).all<AuditRow>();
+  }
+
+  listFieldVitals(projectId: string, ownerId: string) {
+    return this.db.prepare(
+      "SELECT daily_vitals.name, SUM(daily_vitals.count) AS count, SUM(daily_vitals.total) AS total FROM daily_vitals INNER JOIN projects ON projects.id = daily_vitals.project_id WHERE daily_vitals.project_id = ? AND projects.owner_id = ? AND projects.is_active = 1 AND daily_vitals.date >= date('now', '-30 days') GROUP BY daily_vitals.name",
+    ).bind(projectId, ownerId).all<VitalRow>();
   }
 }
