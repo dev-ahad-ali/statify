@@ -9,7 +9,7 @@ createApp().listen(8787);
 export default httpServerHandler({ port: 8787 });
 
 export async function scheduled(controller: ScheduledController, _env: Env, ctx: ExecutionContext) {
-  if (controller.cron === "0 4 * * 0") {
+  if (controller.cron === "0 4 * * SUN") {
     ctx.waitUntil(deleteExpiredEvents(runtimeEnv.DB).catch((error) => console.error("event retention failed", error)));
     return;
   }

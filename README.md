@@ -75,7 +75,7 @@ The ingest rate limit is 600 requests per API key per minute in KV. Login and fo
 The API has two cron triggers in each environment:
 
 - `0 3 * * *`: runs mobile PSI and fetch-based agentic audits for up to 200 active projects, with a one-second gap between projects.
-- `0 4 * * 0`: deletes raw events older than 90 days. Daily rollups remain.
+- `0 4 * * SUN`: deletes raw events older than 90 days. Daily rollups remain.
 
 The audit job needs the `PSI_API_KEY` Worker secret. Manual `POST /audits/:projectId/run` calls are authenticated and limited to one run per project every ten minutes through KV.
 

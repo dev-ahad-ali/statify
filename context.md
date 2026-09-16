@@ -227,6 +227,8 @@ The theme provider defaults to dark and uses `attribute="class"`. `ThemeToggle` 
 
 `apps/api/wrangler.jsonc` contains local bindings plus `staging` and `prod` environments. Each environment has its own D1 database, KV namespace, Worker name, `WEB_URL`, and cron triggers.
 
+The cron triggers are `0 3 * * *` for audits and `0 4 * * SUN` for weekly retention. Cloudflare uses `SUN` for Sunday in this expression. `scheduled()` branches on `controller.cron`, and both jobs use `ctx.waitUntil` so the scheduled event stays alive until its D1 work settles.
+
 Pages projects:
 
 - `statify-staging`, deployed from `staging` to `https://statify-staging.pages.dev`
