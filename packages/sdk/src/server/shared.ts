@@ -69,6 +69,8 @@ export async function buildServerPayload(options: ServerSdkOptions, request: Ser
       timestamp,
       properties: {
         path: requestPath(request.url),
+        method: request.method,
+        url: request.url,
         referrer: request.getHeader("referer"),
         signature: headers.signature,
         signatureInput: headers.signatureInput,
@@ -88,7 +90,15 @@ export async function sendServerRequest(options: ServerSdkOptions, request: Serv
   try {
     await fetch(options.endpoint ?? DEFAULT_ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "text/plain" },
+      headers: {
+        "Content-Type": "text/plain",
+        ...(request.getHeader("signature") ? { Signature: request.getHeader("signature")! } : {}),
+        ...(request.getHeader("signature-input") ? { "Signature-Input": request.getHeader("signature-input")! } : {}),
+        ...(request.getHeader("signature-agent") ? { "Signature-Agent": request.getHeader("signature-agent")! } : {}),
+        ...(request.getHeader("x-agent-model") ? { "X-Agent-Model": request.getHeader("x-agent-model")! } : {}),
+        "X-Statify-Original-Method": request.method,
+        "X-Statify-Original-URL": request.url,
+      },
       body: JSON.stringify(payload),
       signal: controller.signal,
     });

@@ -12,6 +12,7 @@ export async function ingestController(req: Request, res: Response) {
       typeof req.body === "string" ? req.body : JSON.stringify(req.body),
       req.header("origin"),
       req.header("user-agent") ?? "unknown",
+      { signature: req.header("signature"), "signature-input": req.header("signature-input"), "signature-agent": req.header("signature-agent"), "x-agent-model": req.header("x-agent-model"), "x-statify-original-method": req.header("x-statify-original-method"), "x-statify-original-url": req.header("x-statify-original-url") },
       requestCloudflareProperties(req as { cf?: Record<string, string | undefined> }),
       repository,
     );
