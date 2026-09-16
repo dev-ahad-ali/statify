@@ -27,7 +27,7 @@ function addDays(date: Date, days: number) {
   return result;
 }
 
-function resolveRange(slug: z.infer<typeof dashboardQuerySchema>["range"], now = new Date()): DashboardRange {
+export function resolveDashboardRange(slug: z.infer<typeof dashboardQuerySchema>["range"], now = new Date()): DashboardRange {
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   let from = today;
   let to = today;
@@ -45,7 +45,7 @@ export function parseDashboardQuery(query: Record<string, unknown>, now?: Date):
   const parsed = dashboardQuerySchema.safeParse(query);
   if (!parsed.success) throw new DashboardValidationError(parsed.error.issues[0]?.message ?? "Invalid dashboard query");
   const { range, pageView, locationView, deviceView, ...filters } = parsed.data;
-  return { range: resolveRange(range, now), pageView, locationView, deviceView, filters: filters as DashboardFilters };
+  return { range: resolveDashboardRange(range, now), pageView, locationView, deviceView, filters: filters as DashboardFilters };
 }
 
 export async function getDashboard(repository: DashboardRepository, projectId: string, ownerId: string, options: DashboardOptions) {

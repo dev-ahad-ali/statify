@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import type { DashboardData } from "./dashboard";
+import type { AgentsData, DashboardData } from "./dashboard";
 import type { WebProject } from "./projects";
 
 export const demoProject: WebProject = {
@@ -83,3 +83,20 @@ export function getDemoDashboard(params: { range: string; pageView: DashboardDat
 
 export const demoAuditHistory = data.audits;
 export const demoAgentVisits = data.agentVisits;
+
+export function getDemoAgents(range: string, vendor?: string): AgentsData {
+  const rows = demoAgentVisits.filter((row) => !vendor || row.vendor === vendor);
+  const byVendor = ["OpenAI", "Anthropic", "Perplexity", "Google"].map((dimension, index) => ({ dimension, visits: rows.filter((row) => row.vendor === dimension).reduce((sum, row) => sum + row.visits, 0), confidence: index < 2 ? "0.9" : "0.8" })).filter((row) => row.visits > 0);
+  const byHarness = [{ dimension: "browser-use", visits: 122 }, { dimension: "ChatGPT", visits: 98 }, { dimension: "Claude", visits: 83 }, { dimension: "Perplexity", visits: 54 }];
+  const paths = [{ dimension: "/docs/getting-started", visits: 186 }, { dimension: "/docs/installation", visits: 141 }, { dimension: "/pricing", visits: 74 }, { dimension: "/", visits: 42 }];
+  const chart = rows.reduce<Array<{ date: string; category: string; visits: number }>>((result, row) => {
+    const existing = result.find((item) => item.date === row.date && item.category === row.category);
+    if (existing) existing.visits += row.visits;
+    else result.push({ date: row.date, category: row.category, visits: row.visits });
+    return result;
+  }, []);
+  const agentVisits = rows.reduce((sum, row) => sum + row.visits, 0);
+  const humanVisits = 8_420;
+  const days = range === "today" || range === "yesterday" ? 1 : range === "7d" ? 7 : 30;
+  return { projectId: demoProject.id, range: { from: chart[Math.max(0, chart.length - days)]?.date ?? chart[0]?.date ?? new Date().toISOString().slice(0, 10), to: chart.at(-1)?.date ?? new Date().toISOString().slice(0, 10), chartFrom: chart[Math.max(0, chart.length - days)]?.date ?? chart[0]?.date ?? new Date().toISOString().slice(0, 10), chartTo: chart.at(-1)?.date ?? new Date().toISOString().slice(0, 10) }, vendor: vendor ?? null, summary: { agentVisits, humanVisits, totalVisits: agentVisits + humanVisits, agentRatio: agentVisits / (agentVisits + humanVisits) }, chart: chart.slice(-days), byCategory: [{ dimension: "crawler", visits: Math.round(agentVisits * 0.62) }, { dimension: "agent", visits: Math.round(agentVisits * 0.3) }, { dimension: "automation", visits: Math.round(agentVisits * 0.08) }], byVendor, byHarness, paths };
+}

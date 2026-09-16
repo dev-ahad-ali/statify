@@ -114,13 +114,16 @@ function pageViewRollups(db: D1Database, projectId: string, event: QueuedEvent):
     upsert(`INSERT INTO ${ROLLUP_TABLES.devices} (${ROLLUP_COLUMNS.devices.projectId}, ${ROLLUP_COLUMNS.devices.date}, ${ROLLUP_COLUMNS.devices.device}, ${ROLLUP_COLUMNS.devices.visitors}) VALUES (?, ?, ?, 1) ON CONFLICT (${ROLLUP_COLUMNS.devices.projectId}, ${ROLLUP_COLUMNS.devices.date}, ${ROLLUP_COLUMNS.devices.device}) DO UPDATE SET ${ROLLUP_COLUMNS.devices.visitors} = ${ROLLUP_COLUMNS.devices.visitors} + 1`, db, [projectId, date, device]),
   ];
 
-  if (event.agentCategory) {
-    statements.push(upsert(`INSERT INTO ${ROLLUP_TABLES.agents} (${ROLLUP_COLUMNS.agents.projectId}, ${ROLLUP_COLUMNS.agents.date}, ${ROLLUP_COLUMNS.agents.category}, ${ROLLUP_COLUMNS.agents.vendor}, ${ROLLUP_COLUMNS.agents.harness}, ${ROLLUP_COLUMNS.agents.confidence}, ${ROLLUP_COLUMNS.agents.visitors}) VALUES (?, ?, ?, ?, ?, ?, 1) ON CONFLICT (${ROLLUP_COLUMNS.agents.projectId}, ${ROLLUP_COLUMNS.agents.date}, ${ROLLUP_COLUMNS.agents.category}, ${ROLLUP_COLUMNS.agents.vendor}, ${ROLLUP_COLUMNS.agents.harness}, ${ROLLUP_COLUMNS.agents.confidence}) DO UPDATE SET ${ROLLUP_COLUMNS.agents.visitors} = ${ROLLUP_COLUMNS.agents.visitors} + 1`, db, [projectId, date, event.agentCategory, sqlValue(event.agentVendor), sqlValue(event.agentHarness), sqlValue(event.agentConfidence)]));
-  }
   return statements;
 }
 
+function agentRollup(db: D1Database, projectId: string, event: QueuedEvent): D1PreparedStatement[] {
+  if (!event.agentCategory) return [];
+  const date = dateFor(event);
+  return [upsert(`INSERT INTO ${ROLLUP_TABLES.agents} (${ROLLUP_COLUMNS.agents.projectId}, ${ROLLUP_COLUMNS.agents.date}, ${ROLLUP_COLUMNS.agents.category}, ${ROLLUP_COLUMNS.agents.vendor}, ${ROLLUP_COLUMNS.agents.harness}, ${ROLLUP_COLUMNS.agents.confidence}, ${ROLLUP_COLUMNS.agents.visitors}) VALUES (?, ?, ?, ?, ?, ?, 1) ON CONFLICT (${ROLLUP_COLUMNS.agents.projectId}, ${ROLLUP_COLUMNS.agents.date}, ${ROLLUP_COLUMNS.agents.category}, ${ROLLUP_COLUMNS.agents.vendor}, ${ROLLUP_COLUMNS.agents.harness}, ${ROLLUP_COLUMNS.agents.confidence}) DO UPDATE SET ${ROLLUP_COLUMNS.agents.visitors} = ${ROLLUP_COLUMNS.agents.visitors} + 1`, db, [projectId, date, event.agentCategory, sqlValue(event.agentVendor), sqlValue(event.agentHarness), sqlValue(event.agentConfidence)])];
+}
+
 export async function writeEventBatch(db: D1Database, projectId: string, events: QueuedEvent[]) {
-  const statements = events.flatMap((event) => [eventStatement(db, projectId, event), ...(event.type === "page_view" ? pageViewRollups(db, projectId, event) : [])]);
+  const statements = events.flatMap((event) => [eventStatement(db, projectId, event), ...(event.type === "page_view" ? pageViewRollups(db, projectId, event) : []), ...agentRollup(db, projectId, event)]);
   await db.batch(statements);
 }
