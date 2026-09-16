@@ -1,12 +1,12 @@
 # Statify handoff context
 
-This file describes the repository as it exists after DEV-24. It is meant to give another developer or coding agent enough context to continue with the next ticket without reconstructing the project from scratch.
+This file describes the repository as it exists after DEV-25. It is meant to give another developer or coding agent enough context to continue with the next ticket without reconstructing the project from scratch.
 
 ## Current state
 
 - Repository: `dev-ahad-ali/statify`
 - Active working branch: `staging`
-- Latest feature commits: `5a9db0f feat: add dashboard breakdowns` and `3c30217 feat: add project settings`
+- Latest feature commits: `3c30217 feat: add project settings` and `5f5d6d2 feat: add seeded demo dashboard`
 - The staging branch also includes the remote merge that happened after DEV-19 was pushed.
 - API runtime: Express on a Cloudflare Worker through `cloudflare:node` and `httpServerHandler`
 - Web runtime: Next.js static export deployed to Cloudflare Pages
@@ -15,7 +15,7 @@ This file describes the repository as it exists after DEV-24. It is meant to giv
 - Package manager: Bun 1.4.0
 - Monorepo runner: Turborepo
 
-The current Linear workspace has completed tickets DEV-5 through DEV-24. DEV-25 is the next implementation ticket. The CLI audit did not find issues DEV-1 through DEV-4 in the current workspace, so do not assume those identifiers are available when linking future work.
+The current Linear workspace has completed tickets DEV-5 through DEV-25. DEV-26 is the next implementation ticket. The CLI audit did not find issues DEV-1 through DEV-4 in the current workspace, so do not assume those identifiers are available when linking future work.
 
 ## Repository layout
 
@@ -214,7 +214,7 @@ The starter page in `apps/web/app/page.tsx` now renders a shadcn `Card` with a `
 - `sonner.tsx`
 - `chart.tsx`
 
-The components use `radix-ui`, `lucide-react`, `recharts`, `sonner`, `next-themes`, `class-variance-authority`, `countries-list`, and `shiki`. The dashboard overview, breakdown cards, and settings are implemented through DEV-24. Demo mode and the landing page still belong to later tickets.
+The components use `radix-ui`, `lucide-react`, `recharts`, `sonner`, `next-themes`, `class-variance-authority`, `countries-list`, `shiki`, and `@faker-js/faker`. The dashboard overview, breakdown cards, settings, and demo mode are implemented through DEV-25. The full landing page still belongs to a later ticket.
 
 The static Pages proxy has been verified locally and on staging. `/api/health` returns the API envelope through `apps/web/functions/api/[[path]].ts`, and `/statify.js` returns `200` with `Cache-Control: public, max-age=3600`.
 
@@ -251,6 +251,18 @@ DEV-24 adds the protected static Pages route `/settings` under `apps/web/app/(ap
 - `apps/web/lib/api.ts` now includes `apiDelete`; `lib/projects.ts` wraps update, rotate-key, and delete calls.
 
 The dashboard header links to settings for the selected project. DEV-25 is the next ticket and should add seeded demo mode without changing the settings or dashboard URL contracts.
+
+## Demo mode
+
+DEV-25 adds a public `/demo` route. It wraps the shared dashboard client in `components/dashboard/demo-context.tsx`, so it never runs the auth guard or calls the API.
+
+- `lib/demo.ts` seeds Faker with a fixed value and creates 30 days of visitors, page views, pages, referrers, countries, regions, cities, browsers, operating systems, devices, agent visits, and audit history.
+- `getDemoDashboard` applies the dashboard range, view selectors, and URL filters locally. Filter clicks still update the URL and refresh every card and the chart.
+- The demo project is `Acme Docs` on `acme.example` with a clearly fake public key.
+- The project menu remains visible, but creating a project shows `Not available in demo` and does not call the API. Settings and sign-out controls are replaced by an `Exit demo` link.
+- `demoAuditHistory` and `demoAgentVisits` are exported for the future agent and audit sections.
+
+The landing page now links to `/demo` beside the signup CTA. Keep this route unauthenticated and keep future demo mutations behind the same toast behavior.
 
 ## Dashboard API
 
@@ -347,25 +359,25 @@ The API can also be run with `bunx wrangler dev --local` from `apps/api`. When t
 - DEV-22: dashboard shell, URL-backed project and range controls, project creation, summary cards, visitors area chart, loading skeletons, retry state, and zero-event install state.
 - DEV-23: reusable pages, referrers, locations, and device breakdown cards, URL filters, filter chips, country names and flags, and device percentage bars.
 - DEV-24: settings route, project rename, API-key copy and rotation, allowed-domain management, highlighted install snippets, and typed-domain deletion.
+- DEV-25: public demo route, demo context, fixed-seed Faker dashboard data, local demo filters, future agent and audit seed exports, mutation toast, and landing-page demo link.
 
 ### Next implementation order
 
 The remaining plan is ordered around dependencies:
 
-1. DEV-25: seeded demo mode.
-2. DEV-26: agent user-agent list and classifier.
-3. DEV-27: Web Bot Auth signature verification.
-4. DEV-28: agent rollups, API, dashboard section, and demo data.
-5. DEV-29: PageSpeed Insights cron and manual audit trigger.
-6. DEV-30: fetch-based agentic browsing score.
-7. DEV-31: audit UI and history.
-8. DEV-32: landing page, three.js scene, feature grid, and snippet picker.
-9. DEV-33: optional real-user Web Vitals.
-10. DEV-34: rate limits, retention, final security review, documentation, and production release.
+1. DEV-26: agent user-agent list and classifier.
+2. DEV-27: Web Bot Auth signature verification.
+3. DEV-28: agent rollups, API, dashboard section, and demo data.
+4. DEV-29: PageSpeed Insights cron and manual audit trigger.
+5. DEV-30: fetch-based agentic browsing score.
+6. DEV-31: audit UI and history.
+7. DEV-32: landing page, three.js scene, feature grid, and snippet picker.
+8. DEV-33: optional real-user Web Vitals.
+9. DEV-34: rate limits, retention, final security review, documentation, and production release.
 
 ## Known gaps to keep in mind
 
-- The dashboard API, overview, breakdown cards, and settings are implemented. Demo mode, agent views, audit views, and the full landing page remain future tickets.
+- The dashboard API, overview, breakdown cards, settings, and demo mode are implemented. Agent views, audit views, and the full landing page remain future tickets.
 - The API schema already contains audit and agent rollup tables, but the agent classifier, Web Bot Auth verifier, and audit cron are future tickets.
 - DEV-17 records the planned browser/server page-view deduplication. That logic is not implemented yet; the dashboard currently counts browser page-view events and future server-event integration must add the deduplication rule.
 - Browser API keys are public by design. Origin validation limits accidental cross-site use but cannot stop a client from replaying a public key.
