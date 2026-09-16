@@ -20,6 +20,10 @@ export class ProjectsRepository {
       .all<ProjectRow>();
   }
 
+  listActive() {
+    return this.db.prepare("SELECT * FROM projects WHERE is_active = 1 ORDER BY created_at ASC").all<ProjectRow>();
+  }
+
   findByIdOwned(id: string, ownerId: string) {
     return this.db
       .prepare("SELECT * FROM projects WHERE id = ? AND owner_id = ? AND is_active = 1")
