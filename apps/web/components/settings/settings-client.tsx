@@ -15,7 +15,15 @@ import { getProjects, updateProject, rotateProjectKey, deleteProject, type WebPr
 const DOMAIN_PATTERN = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
 function normalizeDomain(value: string) {
-  return value.trim().toLowerCase().replace(/\.$/, "");
+  const input = value.trim().toLowerCase();
+  if (!input) return "";
+
+  try {
+    const url = new URL(/^https?:\/\//.test(input) ? input : `https://${input}`);
+    return url.hostname.replace(/\.$/, "");
+  } catch {
+    return input.replace(/^https?:\/\//, "").split("/")[0]?.replace(/\.$/, "") ?? "";
+  }
 }
 
 export function SettingsClient() {
@@ -83,6 +91,7 @@ function SettingsView({ project, onProjectChange, onDeleted }: { project: WebPro
   async function addDomain(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const domain = normalizeDomain(domainInput);
+    setDomainInput(domain);
     if (!DOMAIN_PATTERN.test(domain)) { toast.error("Enter a valid domain"); return; }
     if (domain === project.domain || project.allowed_domains.includes(domain)) { toast.error("That domain is already listed"); return; }
     await saveDomains([...project.allowed_domains, domain]);
@@ -110,7 +119,7 @@ function SettingsView({ project, onProjectChange, onDeleted }: { project: WebPro
         <Button onClick={() => void saveName()} disabled={savingName || !name.trim()}><Save />{savingName ? "Saving..." : "Save changes"}</Button>
         <div className="border-t pt-5"><p className="text-sm font-medium">API key</p><div className="mt-2 flex gap-2"><code className="min-w-0 flex-1 truncate rounded-md border bg-muted px-3 py-2 text-sm">{project.api_key}</code><CopyButton value={project.api_key} /></div><Button className="mt-3" variant="outline" onClick={() => setRotating(true)} disabled={rotating}><RefreshCw /> Rotate key</Button></div>
       </CardContent></Card></TabsContent>
-      <TabsContent value="domains"><Card><CardHeader><CardTitle>Allowed domains</CardTitle><CardDescription>Only these browser origins can send events for this project.</CardDescription></CardHeader><CardContent className="space-y-5"><div className="space-y-2"><DomainRow domain={project.domain} primary /><div className="divide-y rounded-lg border">{project.allowed_domains.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No additional domains.</p> : project.allowed_domains.map((domain) => <DomainRow key={domain} domain={domain} onRemove={() => void removeDomain(domain)} />)}</div></div><form className="flex flex-col gap-2 sm:flex-row" onSubmit={addDomain}><input value={domainInput} onChange={(event) => setDomainInput(event.target.value)} placeholder="www.example.com" className="h-10 flex-1 rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" /><Button type="submit" disabled={savingDomains}>{savingDomains ? "Saving..." : "Add domain"}</Button></form></CardContent></Card></TabsContent>
+      <TabsContent value="domains"><Card><CardHeader><CardTitle>Allowed domains</CardTitle><CardDescription>Only these browser origins can send events for this project.</CardDescription></CardHeader><CardContent className="space-y-5"><div className="space-y-2"><DomainRow domain={project.domain} primary /><div className="divide-y rounded-lg border">{project.allowed_domains.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No additional domains.</p> : project.allowed_domains.map((domain) => <DomainRow key={domain} domain={domain} onRemove={() => void removeDomain(domain)} />)}</div></div><form className="flex flex-col gap-2 sm:flex-row" onSubmit={addDomain}><div className="flex-1"><input value={domainInput} onChange={(event) => setDomainInput(event.target.value)} onBlur={() => setDomainInput(normalizeDomain(domainInput))} placeholder="https://www.example.com" aria-describedby="domain-help" className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring" /><p id="domain-help" className="mt-1 text-xs text-muted-foreground">You can paste a URL. The protocol and path are removed automatically.</p></div><Button type="submit" disabled={savingDomains}>{savingDomains ? "Saving..." : "Add domain"}</Button></form></CardContent></Card></TabsContent>
       <TabsContent value="install"><InstallTab project={project} /></TabsContent>
       <TabsContent value="danger"><Card className="border-destructive/50"><CardHeader><CardTitle>Delete project</CardTitle><CardDescription>This removes the project from your account and stops accepting events. Existing data will remain in the database until retention cleanup.</CardDescription></CardHeader><CardContent><Button variant="destructive" onClick={() => setDeleteOpen(true)}><Trash2 /> Delete project</Button></CardContent></Card><DeleteDialog project={project} open={deleteOpen} onOpenChange={setDeleteOpen} onDeleted={onDeleted} /></TabsContent>
     </Tabs>
