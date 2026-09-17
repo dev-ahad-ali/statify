@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type SceneProps = { variant: "hero" | "background" };
+type SceneProps = { variant: "hero" | "background" | "cta" };
 type Point = { x: number; y: number };
 
 function curve(t: number, p0: Point, p1: Point, p2: Point, p3: Point): Point {
@@ -41,7 +41,7 @@ export default function Scene({ variant }: SceneProps) {
       speed: 0.0007 + Math.random() * 0.0015,
       offset: (Math.random() - 0.5) * 1.4,
     }));
-    const stars = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.5 + 0.25, a: Math.random() * 0.55 + 0.15 }));
+    const stars = Array.from({ length: variant === "cta" ? 180 : 90 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.5 + 0.25, a: Math.random() * 0.55 + 0.15 }));
 
     function resize() {
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
@@ -56,7 +56,17 @@ export default function Scene({ variant }: SceneProps) {
       if (stopped) return;
       const ink = dark ? "255,255,255" : "15,39,64";
       context.clearRect(0, 0, width, height);
-      if (variant === "background") {
+      if (variant === "cta") {
+        context.fillStyle = "#0a0a0a";
+        context.fillRect(0, 0, width, height);
+        stars.forEach((star) => { context.beginPath(); context.arc(star.x * width, star.y * height, star.r, 0, Math.PI * 2); context.fillStyle = `rgba(255,255,255,${star.a * (0.55 + Math.sin(time * 0.001 + star.x * 8) * 0.25)})`; context.fill(); });
+        if (!reduced) {
+          context.strokeStyle = "rgba(255,255,255,.025)";
+          context.lineWidth = 1;
+          const gap = 72;
+          for (let x = (time * 0.008) % gap; x < width; x += gap) { context.beginPath(); context.moveTo(x, 0); context.lineTo(x - height * 0.35, height); context.stroke(); }
+        }
+      } else if (variant === "background") {
         const glow = context.createRadialGradient(width * 0.5, height * 0.35, 0, width * 0.5, height * 0.35, Math.max(width, height) * 0.7);
         glow.addColorStop(0, dark ? "rgba(25,104,145,.12)" : "rgba(51,130,170,.10)");
         glow.addColorStop(1, "transparent");
