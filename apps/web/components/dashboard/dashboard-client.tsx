@@ -42,7 +42,7 @@ function formatNumber(value: number) {
 
 function updateUrl(router: ReturnType<typeof useRouter>, pathname: string, params: URLSearchParams, key: string, value: string) {
   params.set(key, value);
-  router.push(`${pathname}?${params.toString()}`);
+  router.push(`${pathname}?${params.toString()}`, { scroll: false });
 }
 
 function LoadingDashboard() {
@@ -237,13 +237,13 @@ export function DashboardClient({ demo: demoProp }: { demo?: boolean } = {}) {
 function setSearchParam(router: ReturnType<typeof useRouter>, pathname: string, current: URLSearchParams, key: string, value: string) {
   const params = new URLSearchParams(current.toString());
   params.set(key, value);
-  router.push(`${pathname}?${params.toString()}`);
+  router.push(`${pathname}?${params.toString()}`, { scroll: false });
 }
 
 function removeSearchParam(router: ReturnType<typeof useRouter>, pathname: string, current: URLSearchParams, key: FilterKey) {
   const params = new URLSearchParams(current.toString());
   params.delete(key);
-  router.push(`${pathname}?${params.toString()}`);
+  router.push(`${pathname}?${params.toString()}`, { scroll: false });
 }
 
 function FilterChips({ filters, onRemove }: { filters: Array<{ key: FilterKey; value: string }>; onRemove: (key: FilterKey) => void }) {
