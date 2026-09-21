@@ -7,7 +7,10 @@ export type EventQueue = {
   flush: (preferBeacon?: boolean) => void;
 };
 
-export function createBatcher(config: BrowserConfig, getPayload: (events: IngestPayload["events"]) => IngestPayload): EventQueue {
+export function createBatcher(
+  config: BrowserConfig,
+  getPayload: (events: IngestPayload["events"]) => IngestPayload,
+): EventQueue {
   let queue: IngestPayload["events"] = [];
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -18,7 +21,8 @@ export function createBatcher(config: BrowserConfig, getPayload: (events: Ingest
     const events = queue;
     queue = [];
     const payload = getPayload(events);
-    if (!preferBeacon || !sendBeacon(config.endpoint, payload)) void sendFetch(config.endpoint, payload);
+    if (!preferBeacon || !sendBeacon(config.endpoint, payload))
+      void sendFetch(config.endpoint, payload);
   };
 
   const schedule = () => {

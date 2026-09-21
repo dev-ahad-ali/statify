@@ -5,7 +5,10 @@ const CONTENT_TYPE = "text/plain";
 export function sendBeacon(endpoint: string, payload: IngestPayload) {
   const body = JSON.stringify(payload);
   if (typeof navigator.sendBeacon !== "function") return false;
-  return navigator.sendBeacon(endpoint, new Blob([body], { type: CONTENT_TYPE }));
+  return navigator.sendBeacon(
+    endpoint,
+    new Blob([body], { type: CONTENT_TYPE }),
+  );
 }
 
 export function sendFetch(endpoint: string, payload: IngestPayload) {

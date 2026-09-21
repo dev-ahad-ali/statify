@@ -6,7 +6,12 @@ import { trackWebVitals } from "./tracker.js";
 
 const config = readConfig();
 if (config) {
-  let getContext = () => ({ userAgent: "", language: "", screen: "", hostname: "" });
+  let getContext = () => ({
+    userAgent: "",
+    language: "",
+    screen: "",
+    hostname: "",
+  });
   const queue = createBatcher(config, (events) => ({
     apiKey: config.apiKey,
     context: getContext(),

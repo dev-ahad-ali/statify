@@ -20,7 +20,11 @@ export function sessionId() {
   const now = Date.now();
   const existing = sessionStorage.getItem(SESSION_KEY);
   const lastSeen = Number(sessionStorage.getItem(SESSION_ACTIVITY_KEY));
-  if (!existing || !Number.isFinite(lastSeen) || now - lastSeen > SESSION_TIMEOUT_MS) {
+  if (
+    !existing ||
+    !Number.isFinite(lastSeen) ||
+    now - lastSeen > SESSION_TIMEOUT_MS
+  ) {
     const id = createId();
     sessionStorage.setItem(SESSION_KEY, id);
     sessionStorage.setItem(SESSION_ACTIVITY_KEY, String(now));

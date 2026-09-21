@@ -1,4 +1,5 @@
-const DEFAULT_ENDPOINT = "https://statify-api-prod.ahadali-dev.workers.dev/ingest";
+const DEFAULT_ENDPOINT =
+  "https://statify-api-prod.ahadali-dev.workers.dev/ingest";
 
 export type BrowserConfig = {
   apiKey: string;
@@ -13,9 +14,12 @@ function positiveNumber(value: string | undefined, fallback: number) {
 }
 
 export function readConfig(): BrowserConfig | null {
-  const script = document.currentScript instanceof HTMLScriptElement
-    ? document.currentScript
-    : [...document.scripts].find((candidate) => candidate.src.includes("statify.js"));
+  const script =
+    document.currentScript instanceof HTMLScriptElement
+      ? document.currentScript
+      : [...document.scripts].find((candidate) =>
+          candidate.src.includes("statify.js"),
+        );
   const apiKey = script?.dataset.apiKey;
   if (!apiKey) return null;
 

@@ -1,4 +1,8 @@
-import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server.js";
+import {
+  NextResponse,
+  type NextFetchEvent,
+  type NextRequest,
+} from "next/server.js";
 import { sendServerRequest, type ServerSdkOptions } from "./shared.js";
 
 export function statifyNext(options: ServerSdkOptions) {
@@ -6,7 +10,10 @@ export function statifyNext(options: ServerSdkOptions) {
     const send = sendServerRequest(options, {
       method: request.method,
       url: request.url,
-      ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("cf-connecting-ip") ?? undefined,
+      ip:
+        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+        request.headers.get("cf-connecting-ip") ??
+        undefined,
       getHeader: (name) => request.headers.get(name) ?? undefined,
     });
     event.waitUntil(send);
