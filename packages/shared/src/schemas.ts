@@ -25,11 +25,13 @@ export const batchContextSchema = z.object({
   language: z.string(),
   screen: z.string(),
   hostname: z.string(),
-  automation: z.object({
-    webdriver: z.boolean(),
-    headless: z.boolean(),
-    noPointer: z.boolean(),
-  }).optional(),
+  automation: z
+    .object({
+      webdriver: z.boolean(),
+      headless: z.boolean(),
+      noPointer: z.boolean(),
+    })
+    .optional(),
 });
 
 export const ingestPayloadSchema = z.object({
@@ -49,18 +51,32 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128),
 });
 
-export const forgotPasswordSchema = z.object({ email: z.string().trim().email() });
-export const resetPasswordSchema = z.object({ token: z.string().min(1), password: z.string().min(8).max(128) });
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().email(),
+});
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8).max(128),
+});
 
 export const projectCreateSchema = z.object({
   name: z.string().trim().min(1).max(100),
   domain: z.string().trim().min(1).max(253),
-  allowed_domains: z.array(z.string().trim().min(1).max(253)).max(50).default([]),
+  allowed_domains: z
+    .array(z.string().trim().min(1).max(253))
+    .max(50)
+    .default([]),
 });
 
 export const projectPatchSchema = z
   .object({
     name: z.string().trim().min(1).max(100).optional(),
-    allowed_domains: z.array(z.string().trim().min(1).max(253)).max(50).optional(),
+    allowed_domains: z
+      .array(z.string().trim().min(1).max(253))
+      .max(50)
+      .optional(),
   })
-  .refine((value) => value.name !== undefined || value.allowed_domains !== undefined, "At least one field is required");
+  .refine(
+    (value) => value.name !== undefined || value.allowed_domains !== undefined,
+    "At least one field is required",
+  );
