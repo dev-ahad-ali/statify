@@ -1,11 +1,25 @@
-import { classify, ingestPayloadSchema, verifyWebBotAuth, type AgentClassification, type Event } from "@statify/shared";
+import {
+  classify,
+  ingestPayloadSchema,
+  verifyWebBotAuth,
+  type AgentClassification,
+  type Event,
+} from "@statify/shared";
 import { waitUntil } from "cloudflare:workers";
 import { UAParser } from "ua-parser-js";
 import { runtimeEnv } from "../../config/env.js";
 import { randomId } from "../../lib/crypto.js";
-import { enforceRateLimit, RateLimitError, reserveD1WriteBudget } from "../../lib/rate-limit.js";
+import {
+  enforceRateLimit,
+  RateLimitError,
+  reserveD1WriteBudget,
+} from "../../lib/rate-limit.js";
 import { IngestRepository, type IngestProject } from "./ingest.repository.js";
-import { writeEventBatch, type IngestContext, type QueuedEvent } from "./rollup.service.js";
+import {
+  writeEventBatch,
+  type IngestContext,
+  type QueuedEvent,
+} from "./rollup.service.js";
 
 export class IngestValidationError extends Error {}
 export class IngestUnauthorizedError extends Error {}
@@ -32,21 +46,42 @@ function getOriginHostname(origin: string | undefined) {
   }
 }
 
-async function lookupProject(apiKey: string, repository: IngestRepository): Promise<IngestProject | null> {
+async function lookupProject(
+  apiKey: string,
+  repository: IngestRepository,
+): Promise<IngestProject | null> {
   const cached = await runtimeEnv.CACHE.get(`apikey:${apiKey}`, "json");
   if (cached && typeof cached === "object") {
     const value = cached as Partial<IngestProject>;
-    if (typeof value.projectId === "string" && typeof value.domain === "string" && Array.isArray(value.allowedDomains)) {
-      return { projectId: value.projectId, domain: value.domain, allowedDomains: value.allowedDomains.filter((domain): domain is string => typeof domain === "string") };
+    if (
+      typeof value.projectId === "string" &&
+      typeof value.domain === "string" &&
+      Array.isArray(value.allowedDomains)
+    ) {
+      return {
+        projectId: value.projectId,
+        domain: value.domain,
+        allowedDomains: value.allowedDomains.filter(
+          (domain): domain is string => typeof domain === "string",
+        ),
+      };
     }
   }
 
   const project = await repository.findProjectByApiKey(apiKey);
-  if (project) await runtimeEnv.CACHE.put(`apikey:${apiKey}`, JSON.stringify(project), { expirationTtl: 60 * 60 });
+  if (project)
+    await runtimeEnv.CACHE.put(`apikey:${apiKey}`, JSON.stringify(project), {
+      expirationTtl: 60 * 60,
+    });
   return project;
 }
 
-function enrichEvent(event: Event, context: IngestContext, receivedAt: number, classification: AgentClassification): QueuedEvent {
+function enrichEvent(
+  event: Event,
+  context: IngestContext,
+  receivedAt: number,
+  classification: AgentClassification,
+): QueuedEvent {
   const properties = event.properties;
   return {
     id: randomId(),
@@ -86,7 +121,14 @@ function enrichEvent(event: Event, context: IngestContext, receivedAt: number, c
   };
 }
 
-export async function queueIngest(rawBody: string, origin: string | undefined, userAgent: string, headers: ForwardedHeaders, cf: Record<string, string | undefined> | undefined, repository: IngestRepository) {
+export async function queueIngest(
+  rawBody: string,
+  origin: string | undefined,
+  userAgent: string,
+  headers: ForwardedHeaders,
+  cf: Record<string, string | undefined> | undefined,
+  repository: IngestRepository,
+) {
   let input: unknown;
   try {
     input = JSON.parse(rawBody);
@@ -95,12 +137,24 @@ export async function queueIngest(rawBody: string, origin: string | undefined, u
   }
 
   const parsed = ingestPayloadSchema.safeParse(input);
-  if (!parsed.success) throw new IngestValidationError(parsed.error.issues[0]?.message ?? "Invalid ingest payload");
-  await enforceRateLimit(runtimeEnv.CACHE, `rate:ingest:${parsed.data.apiKey}:${Math.floor(Date.now() / 60_000)}`, 600, 120);
+  if (!parsed.success)
+    throw new IngestValidationError(
+      parsed.error.issues[0]?.message ?? "Invalid ingest payload",
+    );
+  await enforceRateLimit(
+    runtimeEnv.CACHE,
+    `rate:ingest:${parsed.data.apiKey}:${Math.floor(Date.now() / 60_000)}`,
+    600,
+    120,
+  );
 
-  const serverEventCount = parsed.data.events.filter((event) => event.source === "server").length;
+  const serverEventCount = parsed.data.events.filter(
+    (event) => event.source === "server",
+  ).length;
   if (serverEventCount > 0 && serverEventCount !== parsed.data.events.length) {
-    throw new IngestValidationError("A batch cannot mix browser and server events");
+    throw new IngestValidationError(
+      "A batch cannot mix browser and server events",
+    );
   }
 
   const project = await lookupProject(parsed.data.apiKey, repository);
@@ -108,8 +162,11 @@ export async function queueIngest(rawBody: string, origin: string | undefined, u
 
   if (serverEventCount === 0) {
     const originHostname = getOriginHostname(origin);
-    const allowedDomains = [project.domain, ...project.allowedDomains].map((domain) => domain.toLowerCase());
-    if (!allowedDomains.includes(originHostname)) throw new IngestOriginError("Origin is not allowed for this project");
+    const allowedDomains = [project.domain, ...project.allowedDomains].map(
+      (domain) => domain.toLowerCase(),
+    );
+    if (!allowedDomains.includes(originHostname))
+      throw new IngestOriginError("Origin is not allowed for this project");
   }
 
   const parsedAgent = new UAParser(userAgent).getResult();
@@ -128,22 +185,51 @@ export async function queueIngest(rawBody: string, origin: string | undefined, u
   };
   const receivedAt = Date.now();
   const firstProperties = parsed.data.events[0]?.properties ?? {};
-  const verification = await verifyWebBotAuth({
-    method: headers["x-statify-original-method"] ?? "GET",
-    url: headers["x-statify-original-url"] ?? `https://${context.hostname}${optionalString(firstProperties.path) ?? "/"}`,
+  const verification = await verifyWebBotAuth(
+    {
+      method: headers["x-statify-original-method"] ?? "GET",
+      url:
+        headers["x-statify-original-url"] ??
+        `https://${context.hostname}${optionalString(firstProperties.path) ?? "/"}`,
+      headers,
+      signature: headers.signature,
+      signatureInput: headers["signature-input"],
+      signatureAgent: headers["signature-agent"],
+    },
+    runtimeEnv.CACHE,
+  );
+  const signaturePresent = Boolean(
+    headers.signature ||
+    headers["signature-input"] ||
+    headers["signature-agent"],
+  );
+  const classification = classify({
+    userAgent,
     headers,
-    signature: headers.signature,
-    signatureInput: headers["signature-input"],
-    signatureAgent: headers["signature-agent"],
-  }, runtimeEnv.CACHE);
-  const signaturePresent = Boolean(headers.signature || headers["signature-input"] || headers["signature-agent"]);
-  const classification = classify({ userAgent, headers, automation: parsed.data.context.automation, verified: verification.verified ? { vendor: verification.vendor ?? "unknown", model: verification.model } : undefined, signatureFailed: signaturePresent && !verification.verified });
-  const events = parsed.data.events.map((event) => enrichEvent(event, context, receivedAt, classification));
+    automation: parsed.data.context.automation,
+    verified: verification.verified
+      ? { vendor: verification.vendor ?? "unknown", model: verification.model }
+      : undefined,
+    signatureFailed: signaturePresent && !verification.verified,
+  });
+  const events = parsed.data.events.map((event) =>
+    enrichEvent(event, context, receivedAt, classification),
+  );
   const budget = await reserveD1WriteBudget(runtimeEnv.CACHE, events.length);
 
   waitUntil(
-    writeEventBatch(runtimeEnv.DB, project.projectId, events, budget.writeRawEvents).catch((error: unknown) => {
-      console.error("ingest batch failed", { projectId: project.projectId, batchSize: events.length, writeRawEvents: budget.writeRawEvents, error });
+    writeEventBatch(
+      runtimeEnv.DB,
+      project.projectId,
+      events,
+      budget.writeRawEvents,
+    ).catch((error: unknown) => {
+      console.error("ingest batch failed", {
+        projectId: project.projectId,
+        batchSize: events.length,
+        writeRawEvents: budget.writeRawEvents,
+        error,
+      });
     }),
   );
 }

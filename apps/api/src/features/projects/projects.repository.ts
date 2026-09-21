@@ -15,18 +15,26 @@ export class ProjectsRepository {
 
   listByOwner(ownerId: string) {
     return this.db
-      .prepare("SELECT * FROM projects WHERE owner_id = ? AND is_active = 1 ORDER BY created_at ASC")
+      .prepare(
+        "SELECT * FROM projects WHERE owner_id = ? AND is_active = 1 ORDER BY created_at ASC",
+      )
       .bind(ownerId)
       .all<ProjectRow>();
   }
 
   listActive() {
-    return this.db.prepare("SELECT * FROM projects WHERE is_active = 1 ORDER BY created_at ASC").all<ProjectRow>();
+    return this.db
+      .prepare(
+        "SELECT * FROM projects WHERE is_active = 1 ORDER BY created_at ASC",
+      )
+      .all<ProjectRow>();
   }
 
   findByIdOwned(id: string, ownerId: string) {
     return this.db
-      .prepare("SELECT * FROM projects WHERE id = ? AND owner_id = ? AND is_active = 1")
+      .prepare(
+        "SELECT * FROM projects WHERE id = ? AND owner_id = ? AND is_active = 1",
+      )
       .bind(id, ownerId)
       .first<ProjectRow>();
   }
@@ -52,28 +60,41 @@ export class ProjectsRepository {
 
   updateName(id: string, ownerId: string, name: string, updatedAt: number) {
     return this.db
-      .prepare("UPDATE projects SET name = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND is_active = 1")
+      .prepare(
+        "UPDATE projects SET name = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND is_active = 1",
+      )
       .bind(name, updatedAt, id, ownerId)
       .run();
   }
 
-  updateAllowedDomains(id: string, ownerId: string, allowedDomains: string, updatedAt: number) {
+  updateAllowedDomains(
+    id: string,
+    ownerId: string,
+    allowedDomains: string,
+    updatedAt: number,
+  ) {
     return this.db
-      .prepare("UPDATE projects SET allowed_domains = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND is_active = 1")
+      .prepare(
+        "UPDATE projects SET allowed_domains = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND is_active = 1",
+      )
       .bind(allowedDomains, updatedAt, id, ownerId)
       .run();
   }
 
   rotateApiKey(id: string, ownerId: string, apiKey: string, updatedAt: number) {
     return this.db
-      .prepare("UPDATE projects SET api_key = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND is_active = 1")
+      .prepare(
+        "UPDATE projects SET api_key = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND is_active = 1",
+      )
       .bind(apiKey, updatedAt, id, ownerId)
       .run();
   }
 
   softDelete(id: string, ownerId: string, updatedAt: number) {
     return this.db
-      .prepare("UPDATE projects SET is_active = 0, updated_at = ? WHERE id = ? AND owner_id = ? AND is_active = 1")
+      .prepare(
+        "UPDATE projects SET is_active = 0, updated_at = ? WHERE id = ? AND owner_id = ? AND is_active = 1",
+      )
       .bind(updatedAt, id, ownerId)
       .run();
   }

@@ -26,32 +26,61 @@ export function createTracker(queue: EventQueue) {
       language: navigator.language,
       screen: `${window.screen.width}x${window.screen.height}`,
       hostname: window.location.hostname,
-      automation: { ...hints, noPointer: hints.noPointer || (chromeUserAgent && !(window as Window & { chrome?: unknown }).chrome) },
+      automation: {
+        ...hints,
+        noPointer:
+          hints.noPointer ||
+          (chromeUserAgent &&
+            !(window as Window & { chrome?: unknown }).chrome),
+      },
     };
   };
   const add = (event: Pick<Event, "type" | "properties">) => {
     const currentSessionId = sessionId();
-    queue.add({ ...event, visitorId: visitorId(), sessionId: currentSessionId, timestamp: Date.now() });
+    queue.add({
+      ...event,
+      visitorId: visitorId(),
+      sessionId: currentSessionId,
+      timestamp: Date.now(),
+    });
   };
-  const pageView = () => add({ type: "page_view", properties: { path: currentPath(), title: document.title, referrer: document.referrer } });
-
-  document.addEventListener("mousemove", () => { pointerSeen = true; }, { capture: true, passive: true });
-  document.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const element = target.closest("a, button");
-    if (!element) return;
+  const pageView = () =>
     add({
-      type: "click",
+      type: "page_view",
       properties: {
-        tagName: element.tagName.toLowerCase(),
-        elementId: element.id || undefined,
-        className: element.className || undefined,
-        text: text(element.textContent),
-        href: element instanceof HTMLAnchorElement ? element.href : undefined,
+        path: currentPath(),
+        title: document.title,
+        referrer: document.referrer,
       },
     });
-  }, { capture: true });
+
+  document.addEventListener(
+    "mousemove",
+    () => {
+      pointerSeen = true;
+    },
+    { capture: true, passive: true },
+  );
+  document.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const element = target.closest("a, button");
+      if (!element) return;
+      add({
+        type: "click",
+        properties: {
+          tagName: element.tagName.toLowerCase(),
+          elementId: element.id || undefined,
+          className: element.className || undefined,
+          text: text(element.textContent),
+          href: element instanceof HTMLAnchorElement ? element.href : undefined,
+        },
+      });
+    },
+    { capture: true },
+  );
 
   window.addEventListener("popstate", pageView);
   for (const method of ["pushState", "replaceState"] as const) {
@@ -71,13 +100,21 @@ export function createTracker(queue: EventQueue) {
 }
 
 export function trackWebVitals(queue: EventQueue) {
-  const addVital = (metric: { name: string; value: number; rating: string }) => {
+  const addVital = (metric: {
+    name: string;
+    value: number;
+    rating: string;
+  }) => {
     queue.add({
       type: "custom",
       visitorId: visitorId(),
       sessionId: sessionId(),
       timestamp: Date.now(),
-      properties: { vitalName: metric.name, vitalValue: metric.value, vitalRating: metric.rating },
+      properties: {
+        vitalName: metric.name,
+        vitalValue: metric.value,
+        vitalRating: metric.rating,
+      },
     });
   };
   onLCP(addVital);

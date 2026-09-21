@@ -1,13 +1,25 @@
 {
   "GPTBot": { "vendor": "OpenAI", "category": "crawler" },
-  "ChatGPT-User": { "vendor": "OpenAI", "category": "agent", "harness": "ChatGPT" },
+  "ChatGPT-User": {
+    "vendor": "OpenAI",
+    "category": "agent",
+    "harness": "ChatGPT"
+  },
   "OAI-SearchBot": { "vendor": "OpenAI", "category": "crawler" },
   "ClaudeBot": { "vendor": "Anthropic", "category": "crawler" },
-  "Claude-User": { "vendor": "Anthropic", "category": "agent", "harness": "Claude" },
+  "Claude-User": {
+    "vendor": "Anthropic",
+    "category": "agent",
+    "harness": "Claude"
+  },
   "Claude-SearchBot": { "vendor": "Anthropic", "category": "crawler" },
   "anthropic-ai": { "vendor": "Anthropic", "category": "crawler" },
   "PerplexityBot": { "vendor": "Perplexity", "category": "crawler" },
-  "Perplexity-User": { "vendor": "Perplexity", "category": "agent", "harness": "Perplexity" },
+  "Perplexity-User": {
+    "vendor": "Perplexity",
+    "category": "agent",
+    "harness": "Perplexity"
+  },
   "Google-Extended": { "vendor": "Google", "category": "crawler" },
   "Googlebot": { "vendor": "Google", "category": "crawler" },
   "Bytespider": { "vendor": "ByteDance", "category": "crawler" },

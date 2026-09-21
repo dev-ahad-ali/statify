@@ -16,7 +16,11 @@ export function login(input: { email: string; password: string }) {
   return apiPost<AuthResponse>("/auth/login", input);
 }
 
-export function signup(input: { email: string; password: string; name: string }) {
+export function signup(input: {
+  email: string;
+  password: string;
+  name: string;
+}) {
   return apiPost<AuthResponse>("/auth/signup", input);
 }
 

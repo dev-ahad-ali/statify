@@ -32,7 +32,12 @@ export type AgentsData = {
   projectId: string;
   range: DashboardRange;
   vendor: string | null;
-  summary: { agentVisits: number; humanVisits: number; totalVisits: number; agentRatio: number };
+  summary: {
+    agentVisits: number;
+    humanVisits: number;
+    totalVisits: number;
+    agentRatio: number;
+  };
   chart: Array<{ date: string; category: string; visits: number }>;
   byCategory: Array<{ dimension: string; visits: number }>;
   byVendor: Array<{ dimension: string; visits: number; confidence?: string }>;
@@ -53,14 +58,27 @@ export type DashboardParams = {
   device?: string;
 };
 
-export function getDashboard(projectId: string, params: DashboardParams): Promise<ApiResult<DashboardData>> {
+export function getDashboard(
+  projectId: string,
+  params: DashboardParams,
+): Promise<ApiResult<DashboardData>> {
   const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => { if (value) query.set(key, value); });
-  return apiGet<DashboardData>(`/dashboard/${encodeURIComponent(projectId)}?${query.toString()}`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) query.set(key, value);
+  });
+  return apiGet<DashboardData>(
+    `/dashboard/${encodeURIComponent(projectId)}?${query.toString()}`,
+  );
 }
 
-export function getAgents(projectId: string, range: string, vendor?: string): Promise<ApiResult<AgentsData>> {
+export function getAgents(
+  projectId: string,
+  range: string,
+  vendor?: string,
+): Promise<ApiResult<AgentsData>> {
   const query = new URLSearchParams({ range });
   if (vendor) query.set("vendor", vendor);
-  return apiGet<AgentsData>(`/dashboard/${encodeURIComponent(projectId)}/agents?${query.toString()}`);
+  return apiGet<AgentsData>(
+    `/dashboard/${encodeURIComponent(projectId)}/agents?${query.toString()}`,
+  );
 }

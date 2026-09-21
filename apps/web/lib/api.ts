@@ -27,7 +27,11 @@ async function parseResponse<T>(response: Response): Promise<ApiResult<T>> {
 
   return {
     data: response.ok ? (body?.data ?? null) : null,
-    error: response.ok ? null : body?.error ?? body?.message ?? `Request failed with status ${response.status}`,
+    error: response.ok
+      ? null
+      : (body?.error ??
+        body?.message ??
+        `Request failed with status ${response.status}`),
     status: response.status,
   };
 }
@@ -47,7 +51,11 @@ async function refreshSession() {
   return refreshPromise;
 }
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}, canRefresh = true): Promise<ApiResult<T>> {
+export async function apiFetch<T>(
+  path: string,
+  init: RequestInit = {},
+  canRefresh = true,
+): Promise<ApiResult<T>> {
   let response: Response;
   try {
     response = await fetch(apiPath(path), {

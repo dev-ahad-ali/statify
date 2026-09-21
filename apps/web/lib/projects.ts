@@ -12,11 +12,17 @@ export function getProjects(): Promise<ApiResult<WebProject[]>> {
   return apiGet<WebProject[]>("/projects");
 }
 
-export function createProject(input: { name: string; domain: string }): Promise<ApiResult<WebProject>> {
+export function createProject(input: {
+  name: string;
+  domain: string;
+}): Promise<ApiResult<WebProject>> {
   return apiPost<WebProject>("/projects", { ...input, allowed_domains: [] });
 }
 
-export function updateProject(id: string, input: { name?: string; allowed_domains?: string[] }): Promise<ApiResult<WebProject>> {
+export function updateProject(
+  id: string,
+  input: { name?: string; allowed_domains?: string[] },
+): Promise<ApiResult<WebProject>> {
   return apiPatch<WebProject>(`/projects/${encodeURIComponent(id)}`, input);
 }
 

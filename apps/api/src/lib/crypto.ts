@@ -7,7 +7,8 @@ function bytesToHex(bytes: Uint8Array) {
 }
 
 function hexToBytes(value: string) {
-  if (!/^[0-9a-f]+$/i.test(value) || value.length % 2 !== 0) throw new Error("Invalid hex value");
+  if (!/^[0-9a-f]+$/i.test(value) || value.length % 2 !== 0)
+    throw new Error("Invalid hex value");
 
   const bytes = new Uint8Array(value.length / 2);
   for (let index = 0; index < bytes.length; index += 1) {
@@ -17,9 +18,20 @@ function hexToBytes(value: string) {
 }
 
 async function derivePasswordHash(password: string, salt: Uint8Array) {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt: salt.buffer as ArrayBuffer, iterations: PBKDF2_ITERATIONS },
+    {
+      name: "PBKDF2",
+      hash: "SHA-256",
+      salt: salt.buffer as ArrayBuffer,
+      iterations: PBKDF2_ITERATIONS,
+    },
     key,
     PBKDF2_KEY_LENGTH,
   );
@@ -49,12 +61,16 @@ export async function verifyPassword(password: string, storedHash: string) {
   if (actual.length !== expected.length) return false;
 
   let difference = 0;
-  for (let index = 0; index < actual.length; index += 1) difference |= (actual[index] ?? 0) ^ (expected[index] ?? 0);
+  for (let index = 0; index < actual.length; index += 1)
+    difference |= (actual[index] ?? 0) ^ (expected[index] ?? 0);
   return difference === 0;
 }
 
 export async function sha256Hex(value: string) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
   return bytesToHex(new Uint8Array(digest));
 }
 
