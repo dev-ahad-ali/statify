@@ -1,6 +1,12 @@
 import { Router, type Router as RouterType } from "express";
 import { requireAuth } from "../auth/auth.middleware.js";
-import { createProjectController, deleteProjectController, listProjectsController, rotateApiKeyController, updateProjectController } from "./projects.controller.js";
+import {
+  createProjectController,
+  deleteProjectController,
+  listProjectsController,
+  rotateApiKeyController,
+  updateProjectController,
+} from "./projects.controller.js";
 
 export const projectsRouter: RouterType = Router();
 projectsRouter.use(requireAuth);

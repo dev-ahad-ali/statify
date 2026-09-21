@@ -1,4 +1,9 @@
-import express, { type Express, type NextFunction, type Request, type Response } from "express";
+import express, {
+  type Express,
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import { authRouter } from "./features/auth/auth.routes.js";
 import { healthRouter } from "./features/health/health.routes.js";
 import { projectsRouter } from "./features/projects/projects.routes.js";

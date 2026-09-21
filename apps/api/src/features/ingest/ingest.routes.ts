@@ -9,5 +9,7 @@ ingestRouter.use((req, res, next) => {
   if (req.method === "OPTIONS") return res.status(204).end();
   return next();
 });
-ingestRouter.use(express.text({ type: ["text/plain", "application/json"], limit: "256kb" }));
+ingestRouter.use(
+  express.text({ type: ["text/plain", "application/json"], limit: "256kb" }),
+);
 ingestRouter.post("/", ingestController);
