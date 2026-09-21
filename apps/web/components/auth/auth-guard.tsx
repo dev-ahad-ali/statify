@@ -17,7 +17,12 @@ export function AuthGuard({ children }: { children: ReactNode }) {
     });
   }, [router]);
 
-  if (!ready || !user) return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Checking your session...</div>;
+  if (!ready || !user)
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+        Checking your session...
+      </div>
+    );
   return <>{children}</>;
 }
 
@@ -33,6 +38,11 @@ export function GuestGuard({ children }: { children: ReactNode }) {
     });
   }, [pathname, router]);
 
-  if (!ready) return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Checking your session...</div>;
+  if (!ready)
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+        Checking your session...
+      </div>
+    );
   return <>{children}</>;
 }
